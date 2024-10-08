@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Post" ALTER COLUMN "content" DROP NOT NULL,
+ALTER COLUMN "description" DROP NOT NULL;

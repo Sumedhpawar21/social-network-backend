@@ -13,17 +13,13 @@ const ACCEPTED_FILE_TYPES = [
     "video/mpeg",
 ];
 exports.addPostSchema = zod_1.z.object({
-    user_id: zod_1.z.string({ message: "User is required" }),
-    description: zod_1.z.string({ message: "description is required" }),
+    description: zod_1.z.string({ message: "description is required" }).optional(),
 });
 const validateRequest = (req) => {
     try {
         const body = exports.addPostSchema.parse(req.body);
         const file = req.file;
-        if (!file) {
-            throw new Error("Content Not Provided");
-        }
-        if (!ACCEPTED_FILE_TYPES.includes(file.mimetype)) {
+        if (file && !ACCEPTED_FILE_TYPES.includes(file.mimetype)) {
             throw new Error("File type Not Supported");
         }
         return { body, file };

@@ -13,8 +13,7 @@ const ACCEPTED_FILE_TYPES = [
 ];
 
 export const addPostSchema = z.object({
-  user_id: z.string({ message: "User is required" }),
-  description: z.string({ message: "description is required" }),
+  description: z.string({ message: "description is required" }).optional(),
 });
 
 export const validateRequest = (req: Request) => {
@@ -22,11 +21,8 @@ export const validateRequest = (req: Request) => {
     const body = addPostSchema.parse(req.body);
 
     const file = req.file;
-    if (!file) {
-      throw new Error("Content Not Provided");
-    }
 
-    if (!ACCEPTED_FILE_TYPES.includes(file.mimetype)) {
+    if (file && !ACCEPTED_FILE_TYPES.includes(file.mimetype)) {
       throw new Error("File type Not Supported");
     }
 

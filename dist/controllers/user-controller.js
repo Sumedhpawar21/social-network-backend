@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.googleLoginController = exports.verifyUserController = exports.registerController = exports.refreshAccessTokenController = exports.loginController = void 0;
+exports.getAllUsersController = exports.googleLoginController = exports.verifyUserController = exports.registerController = exports.refreshAccessTokenController = exports.loginController = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
@@ -150,7 +150,7 @@ const loginController = async (req, res, next) => {
             maxAge: 30 * 24 * 60 * 60 * 1000,
             sameSite: "none",
             httpOnly: true,
-            secure: true,
+            secure: process.env.NODE_ENV === "production",
         })
             .status(200)
             .json({
@@ -219,33 +219,26 @@ const googleLoginController = async (req, res, next) => {
             where: { email },
         });
         if (!user) {
-            // Create new user if they don't already exist
             user = await dbConfig_1.default.user.create({
                 data: {
                     email: email,
                     username: username,
-                    isVerified: true, // Automatically verify since it's from Google
+                    isVerified: true,
                 },
             });
         }
-        // Generate refresh token and access token using your own mechanism
-        const refreshToken = (0, helper_1.generateToken)({ userId: user.id, email: user.email }, "30d", // Example expiration time
-        true // Marks as refresh token
-        );
-        const accessToken = (0, helper_1.generateToken)({ userId: user.id, email: user.email }, "7d" // Example expiration time
-        );
-        // Store the refresh token in the database (if you need to)
+        const refreshToken = (0, helper_1.generateToken)({ userId: user.id, email: user.email }, "30d", true);
+        const accessToken = (0, helper_1.generateToken)({ userId: user.id, email: user.email }, "7d");
         await dbConfig_1.default.user.update({
             where: { email: user.email },
             data: { refresh_token: refreshToken },
         });
-        // Return tokens and user info
         return res
             .cookie("refreshToken", refreshToken, {
-            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+            maxAge: 30 * 24 * 60 * 60 * 1000,
             sameSite: "none",
             httpOnly: true,
-            secure: true,
+            secure: process.env.NODE_ENV === "production",
         })
             .status(200)
             .json({
@@ -265,3 +258,81 @@ const googleLoginController = async (req, res, next) => {
     }
 };
 exports.googleLoginController = googleLoginController;
+const getAllUsersController = async (req, res, next) => {
+    try {
+        const { search } = req.query;
+        const userId = req.user?.userId;
+        if (!userId || isNaN(Number(userId))) {
+            return next(new ErrorClass_1.ErrorHandler("Invalid or missing userId", 400));
+        }
+        const parsedUserId = Number(userId);
+        const users = await dbConfig_1.default.user.findMany({
+            where: {
+                AND: {
+                    id: {
+                        not: parsedUserId,
+                    },
+                },
+                ...(search && {
+                    OR: [
+                        {
+                            email: { contains: String(search), mode: "insensitive" },
+                        },
+                        {
+                            username: { contains: String(search), mode: "insensitive" },
+                        },
+                    ],
+                }),
+            },
+            select: {
+                id: true,
+                username: true,
+                avatarUrl: true,
+                friendships: {
+                    where: {
+                        OR: [
+                            { userId: parsedUserId, friendId: { not: parsedUserId } },
+                            { friendId: parsedUserId, userId: { not: parsedUserId } },
+                        ],
+                    },
+                    select: {
+                        status: true,
+                    },
+                },
+                friendOf: {
+                    where: {
+                        OR: [
+                            { userId: parsedUserId, friendId: { not: parsedUserId } },
+                            { friendId: parsedUserId, userId: { not: parsedUserId } },
+                        ],
+                    },
+                    select: {
+                        status: true,
+                    },
+                },
+            },
+        });
+        const usersWithFriendshipStatus = users.map((user) => {
+            const friendshipStatus = user.friendships.length > 0
+                ? user.friendships[0].status
+                : user.friendOf.length > 0
+                    ? user.friendOf[0].status
+                    : "none";
+            const { friendships, friendOf, ...userData } = user;
+            return {
+                ...userData,
+                friendshipStatus,
+            };
+        });
+        return res.status(200).json({
+            success: true,
+            message: "Users fetched successfully",
+            data: usersWithFriendshipStatus,
+        });
+    }
+    catch (error) {
+        console.error("Error fetching users:", error);
+        return next(new ErrorClass_1.ErrorHandler("Internal Server Error", 500));
+    }
+};
+exports.getAllUsersController = getAllUsersController;

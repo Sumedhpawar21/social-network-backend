@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { NextFunction, Request, Response } from "express";
-import jwt, { JsonWebTokenError, JwtPayload } from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { ZodError } from "zod";
 import prisma from "../config/dbConfig";
 import { SendMail } from "../config/nodemailerConfig";
@@ -188,7 +188,7 @@ const loginController = async (
         maxAge: 30 * 24 * 60 * 60 * 1000,
         sameSite: "none",
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === "production",
       })
       .status(200)
       .json({
@@ -270,41 +270,37 @@ const googleLoginController = async (
     });
 
     if (!user) {
-      // Create new user if they don't already exist
       user = await prisma.user.create({
         data: {
           email: email,
           username: username,
-          isVerified: true, // Automatically verify since it's from Google
+          isVerified: true,
         },
       });
     }
 
-    // Generate refresh token and access token using your own mechanism
     const refreshToken = generateToken(
       { userId: user.id, email: user.email },
-      "30d", // Example expiration time
-      true // Marks as refresh token
+      "30d",
+      true
     );
 
     const accessToken = generateToken(
       { userId: user.id, email: user.email },
-      "7d" // Example expiration time
+      "7d"
     );
 
-    // Store the refresh token in the database (if you need to)
     await prisma.user.update({
       where: { email: user.email },
       data: { refresh_token: refreshToken },
     });
 
-    // Return tokens and user info
     return res
       .cookie("refreshToken", refreshToken, {
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        maxAge: 30 * 24 * 60 * 60 * 1000,
         sameSite: "none",
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === "production",
       })
       .status(200)
       .json({
@@ -322,6 +318,95 @@ const googleLoginController = async (
     return next(new ErrorHandler("Internal Server Error", 500));
   }
 };
+const getAllUsersController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { search } = req.query;
+    const userId = req.user?.userId;
+
+    if (!userId || isNaN(Number(userId))) {
+      return next(new ErrorHandler("Invalid or missing userId", 400));
+    }
+
+    const parsedUserId = Number(userId);
+
+    const users = await prisma.user.findMany({
+      where: {
+        AND: {
+          id: {
+            not: parsedUserId,
+          },
+        },
+        ...(search && {
+          OR: [
+            {
+              email: { contains: String(search), mode: "insensitive" },
+            },
+            {
+              username: { contains: String(search), mode: "insensitive" },
+            },
+          ],
+        }),
+      },
+      select: {
+        id: true,
+        username: true,
+        avatarUrl: true,
+
+        friendships: {
+          where: {
+            OR: [
+              { userId: parsedUserId, friendId: { not: parsedUserId } },
+              { friendId: parsedUserId, userId: { not: parsedUserId } },
+            ],
+          },
+          select: {
+            status: true,
+          },
+        },
+        friendOf: {
+          where: {
+            OR: [
+              { userId: parsedUserId, friendId: { not: parsedUserId } },
+              { friendId: parsedUserId, userId: { not: parsedUserId } },
+            ],
+          },
+          select: {
+            status: true,
+          },
+        },
+      },
+    });
+
+    const usersWithFriendshipStatus = users.map((user) => {
+      const friendshipStatus =
+        user.friendships.length > 0
+          ? user.friendships[0].status
+          : user.friendOf.length > 0
+          ? user.friendOf[0].status
+          : "none";
+
+      const { friendships, friendOf, ...userData } = user;
+
+      return {
+        ...userData,
+        friendshipStatus,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Users fetched successfully",
+      data: usersWithFriendshipStatus,
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return next(new ErrorHandler("Internal Server Error", 500));
+  }
+};
 
 export {
   loginController,
@@ -329,4 +414,5 @@ export {
   registerController,
   verifyUserController,
   googleLoginController,
+  getAllUsersController,
 };
