@@ -12,4 +12,5 @@ router.post("/login-with-google", user_controller_js_1.googleLoginController);
 router.get("/refresh-token", user_controller_js_1.refreshAccessTokenController);
 router.use(authMiddleware_js_1.authMiddleware);
 router.get("/all-users", user_controller_js_1.getAllUsersController);
+router.get("/friend-list", user_controller_js_1.getFriendList);
 exports.default = router;

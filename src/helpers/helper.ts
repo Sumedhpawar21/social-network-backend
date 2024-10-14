@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { userSocketIDs } from "../socket";
 export function generateToken(
   payload: { userId: number; email: string },
   ttl = "30d",
@@ -10,3 +11,7 @@ export function generateToken(
   return token;
 }
 
+export function getSockets({ users }: { users: number[] }) {
+  const sockets = users.map((user: number) => userSocketIDs.get(user));
+  return sockets;
+}

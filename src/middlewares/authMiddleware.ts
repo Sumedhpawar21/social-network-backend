@@ -15,7 +15,11 @@ declare global {
   }
 }
 
-export const authMiddleware = async (req: Request, next: NextFunction) => {
+export const authMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   const authHeader = req.headers["authorization"];
 
   if (!authHeader || !authHeader.startsWith("Bearer")) {
@@ -73,6 +77,5 @@ export const socketAuthMiddleware = async (socket: Socket, next: any) => {
   } catch (error) {
     console.log(error);
     return next(new ErrorHandler("Invalid Token", 401));
-    
   }
 };

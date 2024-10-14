@@ -6,6 +6,7 @@ import {
   refreshAccessTokenController,
   googleLoginController,
   getAllUsersController,
+  getFriendList,
 } from "../controllers/user-controller.js";
 import { singleAvatar } from "../config/multerConfig.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
@@ -18,4 +19,5 @@ router.post("/login-with-google", googleLoginController);
 router.get("/refresh-token", refreshAccessTokenController);
 router.use(authMiddleware);
 router.get("/all-users", getAllUsersController);
+router.get("/friend-list", getFriendList);
 export default router;

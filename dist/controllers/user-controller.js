@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllUsersController = exports.googleLoginController = exports.verifyUserController = exports.registerController = exports.refreshAccessTokenController = exports.loginController = void 0;
+exports.getFriendList = exports.getAllUsersController = exports.googleLoginController = exports.verifyUserController = exports.registerController = exports.refreshAccessTokenController = exports.loginController = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
@@ -182,6 +182,7 @@ exports.loginController = loginController;
 const refreshAccessTokenController = async (req, res, next) => {
     try {
         const refreshToken = req.cookies[constants_1.token_name];
+        console.log(refreshToken, 225);
         if (!refreshToken)
             return next(new ErrorClass_1.ErrorHandler("Provide refresh-token", 401));
         const decodedData = jsonwebtoken_1.default.verify(refreshToken, process.env.JWT_SECRET);
@@ -336,3 +337,61 @@ const getAllUsersController = async (req, res, next) => {
     }
 };
 exports.getAllUsersController = getAllUsersController;
+const getFriendList = async (req, res, next) => {
+    try {
+        const userId = req.user?.userId;
+        const { username } = req.query;
+        if (!userId) {
+            return next(new ErrorClass_1.ErrorHandler("User not authenticated", 401));
+        }
+        const user = await dbConfig_1.default.user.findUnique({
+            where: {
+                id: Number(userId),
+                ...(username && { username: String(username) }),
+            },
+            include: {
+                friendOf: {
+                    where: {
+                        status: "accepted",
+                    },
+                    include: {
+                        user: true,
+                    },
+                },
+                friendships: {
+                    where: {
+                        status: "accepted",
+                    },
+                    include: {
+                        friend: true,
+                    },
+                },
+            },
+        });
+        if (!user) {
+            return next(new ErrorClass_1.ErrorHandler("User not found", 404));
+        }
+        const friends = [
+            ...user.friendships.map((friendship) => ({
+                friendId: friendship.friend.id,
+                username: friendship.friend.username,
+                avatarUrl: friendship.friend.avatarUrl,
+            })),
+            ...user.friendOf.map((friendOf) => ({
+                friendId: friendOf.user.id,
+                username: friendOf.user.username,
+                avatarUrl: friendOf.user.avatarUrl,
+            })),
+        ];
+        return res.status(200).json({
+            success: true,
+            message: `Friends fetched successfully for userId: ${userId}`,
+            data: friends,
+        });
+    }
+    catch (error) {
+        console.log(error);
+        return next(new ErrorClass_1.ErrorHandler("Internal Server Error", 500));
+    }
+};
+exports.getFriendList = getFriendList;

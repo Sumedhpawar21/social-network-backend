@@ -222,6 +222,8 @@ const refreshAccessTokenController = async (
 ) => {
   try {
     const refreshToken = req.cookies[token_name];
+    console.log(refreshToken, 225);
+
     if (!refreshToken)
       return next(new ErrorHandler("Provide refresh-token", 401));
     const decodedData = jwt.verify(refreshToken, process.env.JWT_SECRET!);
@@ -408,6 +410,72 @@ const getAllUsersController = async (
   }
 };
 
+const getFriendList = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?.userId;
+    const { username } = req.query;
+
+    if (!userId) {
+      return next(new ErrorHandler("User not authenticated", 401));
+    }
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: Number(userId),
+        ...(username && { username: String(username) }),
+      },
+      include: {
+        friendOf: {
+          where: {
+            status: "accepted",
+          },
+          include: {
+            user: true,
+          },
+        },
+        friendships: {
+          where: {
+            status: "accepted",
+          },
+          include: {
+            friend: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    const friends = [
+      ...user.friendships.map((friendship) => ({
+        friendId: friendship.friend.id,
+        username: friendship.friend.username,
+        avatarUrl: friendship.friend.avatarUrl,
+      })),
+      ...user.friendOf.map((friendOf) => ({
+        friendId: friendOf.user.id,
+        username: friendOf.user.username,
+        avatarUrl: friendOf.user.avatarUrl,
+      })),
+    ];
+
+    return res.status(200).json({
+      success: true,
+      message: `Friends fetched successfully for userId: ${userId}`,
+      data: friends,
+    });
+  } catch (error) {
+    console.log(error);
+    return next(new ErrorHandler("Internal Server Error", 500));
+  }
+};
+
 export {
   loginController,
   refreshAccessTokenController,
@@ -415,4 +483,5 @@ export {
   verifyUserController,
   googleLoginController,
   getAllUsersController,
+  getFriendList,
 };
