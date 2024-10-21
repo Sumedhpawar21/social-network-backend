@@ -4,6 +4,7 @@ import { socketAuthMiddleware } from "./middlewares/authMiddleware";
 import { v4 as uuid } from "uuid";
 import { getSockets } from "./helpers/helper";
 import Message from "./models/messageSchema";
+import prisma from "./config/dbConfig";
 
 export const userSocketIDs = new Map();
 const onlineUsers = new Set();
@@ -12,7 +13,6 @@ const setupSocket = async (io: Server) => {
   try {
     io.use(socketAuthMiddleware);
 
-    // On connection
     io.on("connection", (socket) => {
       const user = socket.data.user;
 
@@ -34,21 +34,32 @@ const setupSocket = async (io: Server) => {
           memberIds,
           message,
         }: {
-          chatId: string;
+          chatId: number;
           memberIds: number[];
           message: string;
         }) => {
           try {
-            if (!chatId || !memberIds || !message) {
+            if (!memberIds || !message) {
               return console.error("Invalid message payload received");
             }
-
+            if (!chatId) {
+              const newChat = await prisma.chat.create({
+                data: {
+                  members: {
+                    create: memberIds.map((userId) => ({
+                      user: { connect: { id: userId } },
+                    })),
+                  },
+                },
+              });
+              chatId = newChat.id;
+            }
             const messageForRealTime = {
-              content: message,
+              message: message,
               id: uuid(),
               sender: {
                 id: user.userId,
-                username: user.email,
+                username: user.username,
               },
               chatId,
               createdAt: new Date().toISOString(),
@@ -82,6 +93,46 @@ const setupSocket = async (io: Server) => {
           } catch (error: any) {
             console.error(`Error processing new message: ${error.message}`);
           }
+        }
+      );
+
+      socket.on(
+        socketEvents.STARTED_TYPING,
+        async ({
+          chatId,
+          memberIds,
+        }: {
+          chatId: number;
+          memberIds: number[];
+        }) => {
+          console.log(memberIds, 108);
+
+          const memberSockets = getSockets({ users: memberIds });
+          const filteredMemberSockets = memberSockets.filter(
+            (sockets) => sockets !== socket.id
+          );
+
+          socket
+            .to(filteredMemberSockets)
+            .emit(socketEvents.STARTED_TYPING, { chatId });
+        }
+      );
+      socket.on(
+        socketEvents.STOPPED_TYPING,
+        async ({
+          memberIds,
+          chatId,
+        }: {
+          memberIds: number[];
+          chatId: number;
+        }) => {
+          const memberSockets = getSockets({ users: memberIds });
+          const filteredMemberSockets = memberSockets.filter(
+            (sockets) => sockets !== socket.id
+          );
+          socket
+            .to(filteredMemberSockets)
+            .emit(socketEvents.STOPPED_TYPING, { chatId });
         }
       );
 

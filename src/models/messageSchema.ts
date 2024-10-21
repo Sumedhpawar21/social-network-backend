@@ -11,7 +11,7 @@ const MessageSchema = new mongoose.Schema(
     senderId: {
       type: String,
     },
-    chatId: String,
+    chatId: Number,
   },
   { timestamps: true }
 );

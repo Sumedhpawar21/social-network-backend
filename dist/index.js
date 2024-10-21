@@ -14,6 +14,7 @@ const friend_routes_1 = __importDefault(require("./routes/friend-routes"));
 const post_routes_js_1 = __importDefault(require("./routes/post-routes.js"));
 const user_routes_js_1 = __importDefault(require("./routes/user-routes.js"));
 const notification_routes_js_1 = __importDefault(require("./routes/notification-routes.js"));
+const chat_routes_js_1 = __importDefault(require("./routes/chat-routes.js"));
 const dbConfig_js_1 = require("./config/dbConfig.js");
 const http_1 = require("http");
 const socket_io_1 = require("socket.io");
@@ -50,6 +51,7 @@ app.get("/", (req, res) => {
 app.use("/api/user", user_routes_js_1.default);
 app.use("/api/post", post_routes_js_1.default);
 app.use("/api/friends", friend_routes_1.default);
+app.use("/api/chat", chat_routes_js_1.default);
 app.use("/api/notification", notification_routes_js_1.default);
 app.use(ErrorMiddleware_js_1.errorMiddleware);
 server.listen(PORT, () => console.log(`PORT Running ON PORT ${PORT}`));

@@ -426,23 +426,73 @@ const getFriendList = async (
     const user = await prisma.user.findUnique({
       where: {
         id: Number(userId),
-        ...(username && { username: String(username) }),
       },
       include: {
-        friendOf: {
-          where: {
-            status: "accepted",
-          },
-          include: {
-            user: true,
-          },
-        },
         friendships: {
           where: {
             status: "accepted",
+            friend: {
+              ...(username && {
+                username: {
+                  contains: String(username),
+                  mode: "insensitive",
+                },
+              }),
+            },
           },
           include: {
-            friend: true,
+            friend: {
+              include: {
+                chatMemberships: {
+                  where: {
+                    chat: {
+                      members: {
+                        some: {
+                          userId: Number(userId),
+                        },
+                      },
+                    },
+                  },
+                  include: {
+                    chat: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+
+        friendOf: {
+          where: {
+            status: "accepted",
+            user: {
+              ...(username && {
+                username: {
+                  contains: String(username),
+                  mode: "insensitive",
+                },
+              }),
+            },
+          },
+          include: {
+            user: {
+              include: {
+                chatMemberships: {
+                  where: {
+                    chat: {
+                      members: {
+                        some: {
+                          userId: Number(userId),
+                        },
+                      },
+                    },
+                  },
+                  include: {
+                    chat: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -457,11 +507,13 @@ const getFriendList = async (
         friendId: friendship.friend.id,
         username: friendship.friend.username,
         avatarUrl: friendship.friend.avatarUrl,
+        chatId: friendship.friend.chatMemberships[0]?.chat?.id ?? null,
       })),
       ...user.friendOf.map((friendOf) => ({
         friendId: friendOf.user.id,
         username: friendOf.user.username,
         avatarUrl: friendOf.user.avatarUrl,
+        chatId: friendOf.user.chatMemberships[0]?.chat?.id ?? null,
       })),
     ];
 

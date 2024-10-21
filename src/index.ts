@@ -9,6 +9,7 @@ import friendRoutes from "./routes/friend-routes";
 import postRoutes from "./routes/post-routes.js";
 import authRoutes from "./routes/user-routes.js";
 import notificationRoutes from "./routes/notification-routes.js";
+import chatRoutes from "./routes/chat-routes.js";
 import { connectDb } from "./config/dbConfig.js";
 import { createServer, Server as httpServer } from "http";
 import { Server } from "socket.io";
@@ -51,6 +52,7 @@ app.get("/", (req: Request, res: Response) => {
 app.use("/api/user", authRoutes);
 app.use("/api/post", postRoutes);
 app.use("/api/friends", friendRoutes);
+app.use("/api/chat", chatRoutes);
 app.use("/api/notification", notificationRoutes);
 
 app.use(errorMiddleware);
