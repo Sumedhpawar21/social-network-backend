@@ -21,6 +21,8 @@ const socket_io_1 = require("socket.io");
 const socket_js_1 = require("./socket.js");
 const helmet_1 = __importDefault(require("helmet"));
 const compression_1 = __importDefault(require("compression"));
+const node_cron_1 = __importDefault(require("node-cron"));
+const axios_1 = __importDefault(require("axios"));
 // PORT
 const PORT = process.env.PORT || 3000;
 (0, dbConfig_js_1.connectDb)();
@@ -53,5 +55,14 @@ app.use("/api/post", post_routes_js_1.default);
 app.use("/api/friends", friend_routes_1.default);
 app.use("/api/chat", chat_routes_js_1.default);
 app.use("/api/notification", notification_routes_js_1.default);
+node_cron_1.default.schedule("*/10 * * * *", async () => {
+    try {
+        await axios_1.default.get("");
+        console.log("Server is up and running");
+    }
+    catch (error) {
+        console.error("Error pinging server:", error.message);
+    }
+});
 app.use(ErrorMiddleware_js_1.errorMiddleware);
 server.listen(PORT, () => console.log(`PORT Running ON PORT ${PORT}`));
