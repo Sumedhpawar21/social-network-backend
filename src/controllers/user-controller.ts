@@ -509,7 +509,11 @@ const getFriendList = async (
     });
 
     if (!user) {
-      return next(new ErrorHandler("User not found", 404));
+      return res.status(200).json({
+        success: true,
+        message: `Friends fetched successfully for userId: ${userId}`,
+        data: [],
+      });
     }
 
     const friends = [
