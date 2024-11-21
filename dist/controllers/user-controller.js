@@ -423,7 +423,11 @@ const getFriendList = async (req, res, next) => {
             },
         });
         if (!user) {
-            return next(new ErrorClass_1.ErrorHandler("User not found", 404));
+            return res.status(200).json({
+                success: true,
+                message: `Friends fetched successfully for userId: ${userId}`,
+                data: [],
+            });
         }
         const friends = [
             ...user.friendships.map((friendship) => {

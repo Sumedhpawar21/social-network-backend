@@ -23,6 +23,7 @@ const helmet_1 = __importDefault(require("helmet"));
 const compression_1 = __importDefault(require("compression"));
 const node_cron_1 = __importDefault(require("node-cron"));
 const axios_1 = __importDefault(require("axios"));
+const friendRequestQueue_js_1 = require("./queues/friendRequestQueue.js");
 // PORT
 const PORT = process.env.PORT || 3000;
 (0, dbConfig_js_1.connectDb)();
@@ -43,21 +44,54 @@ app.set("io", io);
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 app.use((0, cors_1.default)({
-    origin: ["http://localhost:3000", "https://social-nettwork-frontend.vercel.app"],
+    origin: [
+        "http://localhost:3000",
+        "https://social-nettwork-frontend.vercel.app",
+    ],
     credentials: true,
 }));
 app.use((0, morgan_1.default)("dev"));
 app.use((0, cookie_parser_1.default)());
-app.use((0, helmet_1.default)());
-app.use((0, compression_1.default)());
+app.use(helmet_1.default.contentSecurityPolicy({
+    directives: {
+        defaultSrc: ["'self'"],
+        connectSrc: [
+            "'self'",
+            "http://localhost:8080",
+            "https://social-nettwork-frontend.vercel.app",
+        ],
+    },
+}));
+app.use((0, compression_1.default)({
+    filter: (req, res) => {
+        if (req.path === "/sse")
+            return false;
+        return compression_1.default.filter(req, res);
+    },
+}));
 app.get("/", (req, res) => {
     res.send("Hello World!");
 });
 app.use("/api/user", user_routes_js_1.default);
+app.use("/api/notification", notification_routes_js_1.default);
 app.use("/api/post", post_routes_js_1.default);
 app.use("/api/friends", friend_routes_1.default);
 app.use("/api/chat", chat_routes_js_1.default);
-app.use("/api/notification", notification_routes_js_1.default);
+app.get("/send", async (req, res) => {
+    const { id } = req.query;
+    await friendRequestQueue_js_1.NotificationQueue.add("sendFriendRequestNotification", {
+        userId: 1,
+        friendId: 2,
+        friendshipId: 18,
+        notificationType: "FriendRequestAccepted",
+    });
+    // const userId = Number(id);
+    // if (isNaN(userId)) {
+    //   return res.status(400).send("Invalid or missing user ID");
+    // }
+    // sendSseNotification(userId, "WORKING!");
+    res.status(200).send("Message sent successfully");
+});
 node_cron_1.default.schedule("*/10 * * * *", async () => {
     try {
         await axios_1.default.get("https://social-network-backend-5rrl.onrender.com");

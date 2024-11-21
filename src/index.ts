@@ -18,6 +18,9 @@ import helmet from "helmet";
 import compression from "compression";
 import cron from "node-cron";
 import axios from "axios";
+import { sendSseNotification } from "./controllers/sse-controller.js";
+import { NotificationQueue } from "./queues/friendRequestQueue.js";
+
 // PORT
 const PORT = process.env.PORT || 3000;
 connectDb();
@@ -39,26 +42,65 @@ setupSocket(io);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use(
   cors({
-    origin: ["http://localhost:3000","https://social-nettwork-frontend.vercel.app"],
+    origin: [
+      "http://localhost:3000",
+      "https://social-nettwork-frontend.vercel.app",
+    ],
     credentials: true,
   })
 );
 app.use(morgan("dev"));
 app.use(cookieParser());
-app.use(helmet());
-app.use(compression());
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: [
+        "'self'",
+        "http://localhost:8080",
+        "https://social-nettwork-frontend.vercel.app",
+      ],
+    },
+  })
+);
+app.use(
+  compression({
+    filter: (req, res) => {
+      if (req.path === "/sse") return false;
+      return compression.filter(req, res);
+    },
+  })
+);
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Hello World!");
 });
 
 app.use("/api/user", authRoutes);
+app.use("/api/notification", notificationRoutes);
 app.use("/api/post", postRoutes);
 app.use("/api/friends", friendRoutes);
 app.use("/api/chat", chatRoutes);
-app.use("/api/notification", notificationRoutes);
+
+app.get("/send", async (req, res) => {
+  const { id } = req.query;
+  await NotificationQueue.add("sendFriendRequestNotification", {
+    userId: 1,
+    friendId: 2,
+    friendshipId: 18,
+    notificationType: "FriendRequestAccepted",
+  });
+  // const userId = Number(id);
+  // if (isNaN(userId)) {
+  //   return res.status(400).send("Invalid or missing user ID");
+  // }
+
+  // sendSseNotification(userId, "WORKING!");
+  res.status(200).send("Message sent successfully");
+});
 
 cron.schedule("*/10 * * * *", async () => {
   try {

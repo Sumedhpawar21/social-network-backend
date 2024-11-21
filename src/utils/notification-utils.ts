@@ -63,7 +63,7 @@ export const sendFriendRequestAcceptedNotification = async ({
   const notification = await prisma.notification.create({
     data: {
       notificationType: "FRIEND_REQUEST_ACCEPTED",
-      message: `${user?.username} Accepted Your Friend Request`,
+      message: `${friend?.username} Accepted Your Friend Request`,
       recipientId: userId,
       senderId: friendId,
       friendshipId,
@@ -80,7 +80,7 @@ export const sendFriendRequestAcceptedNotification = async ({
   console.log(deleteExistingNotification, 78);
 
   const notificationPayload = {
-    message: `${user?.username} Accepted Your Friend Request`,
+    message: `${friend?.username} Accepted Your Friend Request`,
     user,
     friend,
   };
