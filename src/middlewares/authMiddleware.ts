@@ -1,8 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { token_name } from "../helpers/constants";
+
 import { ErrorHandler } from "../utils/ErrorClass";
 import { Socket } from "socket.io";
+import { access_token } from "../helpers/constants";
 
 declare global {
   namespace Express {
@@ -20,19 +21,17 @@ export const authMiddleware = async (
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers["authorization"];
+  const authAccessToken = req.cookies[access_token];
 
-  if (!authHeader || !authHeader.startsWith("Bearer")) {
+  if (!authAccessToken) {
     return next(
       new ErrorHandler("Authentication token is missing or invalid", 401)
     );
   }
 
-  const token = authHeader.split(" ")[1];
-
   try {
     const decodedData = jwt.verify(
-      token,
+      authAccessToken,
       process.env.JWT_SECRET!
     ) as JwtPayload;
 

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logoutController = exports.getFriendList = exports.getAllUsersController = exports.googleLoginController = exports.verifyUserController = exports.registerController = exports.refreshAccessTokenController = exports.loginController = void 0;
+exports.validateAccessTokenController = exports.verifyUserController = exports.registerController = exports.refreshAccessTokenController = exports.logoutController = exports.loginController = exports.googleLoginController = exports.getFriendList = exports.getAllUsersController = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
@@ -146,8 +146,14 @@ const loginController = async (req, res, next) => {
             email: user.email,
         }, "7d", false);
         return res
-            .cookie(constants_1.token_name, refreshToken, {
+            .cookie(constants_1.refresh_token, refreshToken, {
             maxAge: 30 * 24 * 60 * 60 * 1000,
+            sameSite: "none",
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+        })
+            .cookie(constants_1.access_token, accesstoken, {
+            maxAge: 7 * 24 * 60 * 60 * 1000,
             sameSite: "none",
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
@@ -160,7 +166,6 @@ const loginController = async (req, res, next) => {
                 userId: user.id,
                 email: user.email,
                 username: user.username,
-                access_token: accesstoken,
             },
         });
     }
@@ -181,8 +186,7 @@ const loginController = async (req, res, next) => {
 exports.loginController = loginController;
 const refreshAccessTokenController = async (req, res, next) => {
     try {
-        const refreshToken = req.cookies[constants_1.token_name];
-        console.log(refreshToken, 225);
+        const refreshToken = req.cookies[constants_1.refresh_token];
         if (!refreshToken)
             return next(new ErrorClass_1.ErrorHandler("Provide refresh-token", 401));
         const decodedData = jsonwebtoken_1.default.verify(refreshToken, process.env.JWT_SECRET);
@@ -197,12 +201,17 @@ const refreshAccessTokenController = async (req, res, next) => {
             userId: userId,
             email: email,
         }, "7d", false);
-        return res.status(200).json({
+        return res
+            .cookie(constants_1.access_token, newAccessToken, {
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            sameSite: "none",
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+        })
+            .status(200)
+            .json({
             success: true,
             message: "Access Token Generated Successfully",
-            data: {
-                access_token: newAccessToken,
-            },
         });
     }
     catch (error) {
@@ -235,8 +244,14 @@ const googleLoginController = async (req, res, next) => {
             data: { refresh_token: refreshToken },
         });
         return res
-            .cookie("refreshToken", refreshToken, {
+            .cookie(constants_1.refresh_token, refreshToken, {
             maxAge: 30 * 24 * 60 * 60 * 1000,
+            sameSite: "none",
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+        })
+            .cookie(constants_1.access_token, accessToken, {
+            maxAge: 7 * 24 * 60 * 60 * 1000,
             sameSite: "none",
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
@@ -249,7 +264,6 @@ const googleLoginController = async (req, res, next) => {
                 userId: user.id,
                 email: user.email,
                 username: user.username,
-                access_token: accessToken,
             },
         });
     }
@@ -490,7 +504,13 @@ const logoutController = async (req, res, next) => {
             return next(new ErrorClass_1.ErrorHandler("Error While logging Out User", 400));
         return res
             .status(200)
-            .cookie(constants_1.token_name, "", {
+            .cookie(constants_1.refresh_token, "", {
+            maxAge: 0,
+            sameSite: "none",
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+        })
+            .cookie(constants_1.access_token, "", {
             maxAge: 0,
             sameSite: "none",
             httpOnly: true,
@@ -507,3 +527,19 @@ const logoutController = async (req, res, next) => {
     }
 };
 exports.logoutController = logoutController;
+const validateAccessTokenController = async (req, res, next) => {
+    try {
+        const accessToken = req.cookies[constants_1.access_token];
+        if (!accessToken)
+            return next(new ErrorClass_1.ErrorHandler("auth Token Not Found", 401));
+        return res.status(200).json({
+            success: true,
+            message: "Token is Valid",
+        });
+    }
+    catch (error) {
+        console.log(error);
+        return next(new ErrorClass_1.ErrorHandler("Internal Server Error", 500));
+    }
+};
+exports.validateAccessTokenController = validateAccessTokenController;

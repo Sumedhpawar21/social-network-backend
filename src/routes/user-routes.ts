@@ -8,6 +8,7 @@ import {
   getAllUsersController,
   getFriendList,
   logoutController,
+  validateAccessTokenController,
 } from "../controllers/user-controller.js";
 import { singleAvatar } from "../config/multerConfig.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
@@ -17,8 +18,9 @@ router.post("/register", singleAvatar, registerController);
 router.post("/verify", verifyUserController);
 router.post("/login", loginController);
 router.post("/login-with-google", googleLoginController);
-router.get("/refresh-token", refreshAccessTokenController);
 router.use(authMiddleware);
+router.get("/refresh-token", refreshAccessTokenController);
+router.get("/validate-access-token", validateAccessTokenController);
 router.get("/all-users", getAllUsersController);
 router.get("/logout", logoutController);
 router.get("/friend-list", getFriendList);

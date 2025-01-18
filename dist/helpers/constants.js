@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.socketEvents = exports.token_name = void 0;
-exports.token_name = "social-token";
+exports.socketEvents = exports.access_token = exports.refresh_token = void 0;
+exports.refresh_token = "social_refresh_token";
+exports.access_token = "social_access_token";
 exports.socketEvents = {
     JOINED: "JOINED",
     EXITED: "EXITED",

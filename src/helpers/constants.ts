@@ -1,4 +1,5 @@
-export const token_name = "social-token";
+export const refresh_token = "social_refresh_token";
+export const access_token = "social_access_token";
 
 export const socketEvents = {
   JOINED: "JOINED",

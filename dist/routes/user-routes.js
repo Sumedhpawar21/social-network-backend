@@ -9,8 +9,9 @@ router.post("/register", multerConfig_js_1.singleAvatar, user_controller_js_1.re
 router.post("/verify", user_controller_js_1.verifyUserController);
 router.post("/login", user_controller_js_1.loginController);
 router.post("/login-with-google", user_controller_js_1.googleLoginController);
-router.get("/refresh-token", user_controller_js_1.refreshAccessTokenController);
 router.use(authMiddleware_js_1.authMiddleware);
+router.get("/refresh-token", user_controller_js_1.refreshAccessTokenController);
+router.get("/validate-access-token", user_controller_js_1.validateAccessTokenController);
 router.get("/all-users", user_controller_js_1.getAllUsersController);
 router.get("/logout", user_controller_js_1.logoutController);
 router.get("/friend-list", user_controller_js_1.getFriendList);

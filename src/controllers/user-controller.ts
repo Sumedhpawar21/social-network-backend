@@ -4,7 +4,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { ZodError } from "zod";
 import prisma from "../config/dbConfig";
 import { SendMail } from "../config/nodemailerConfig";
-import { token_name } from "../helpers/constants";
+import { access_token, refresh_token } from "../helpers/constants";
 import { generateToken } from "../helpers/helper";
 import { ErrorHandler } from "../utils/ErrorClass";
 import { uploadFilesToCloudinary } from "../utils/uploadToCloudinary";
@@ -184,8 +184,14 @@ const loginController = async (
     );
 
     return res
-      .cookie(token_name, refreshToken, {
+      .cookie(refresh_token, refreshToken, {
         maxAge: 30 * 24 * 60 * 60 * 1000,
+        sameSite: "none",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      })
+      .cookie(access_token, accesstoken, {
+        maxAge: 7 * 24 * 60 * 60 * 1000,
         sameSite: "none",
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -198,7 +204,6 @@ const loginController = async (
           userId: user.id,
           email: user.email,
           username: user.username,
-          access_token: accesstoken,
         },
       });
   } catch (error) {
@@ -221,8 +226,7 @@ const refreshAccessTokenController = async (
   next: NextFunction
 ) => {
   try {
-    const refreshToken = req.cookies[token_name];
-    console.log(refreshToken, 225);
+    const refreshToken = req.cookies[refresh_token];
 
     if (!refreshToken)
       return next(new ErrorHandler("Provide refresh-token", 401));
@@ -244,13 +248,18 @@ const refreshAccessTokenController = async (
       "7d",
       false
     );
-    return res.status(200).json({
-      success: true,
-      message: "Access Token Generated Successfully",
-      data: {
-        access_token: newAccessToken,
-      },
-    });
+    return res
+      .cookie(access_token, newAccessToken, {
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        sameSite: "none",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      })
+      .status(200)
+      .json({
+        success: true,
+        message: "Access Token Generated Successfully",
+      });
   } catch (error) {
     console.log(error);
     return next(new ErrorHandler("Internal Server Error", 500));
@@ -298,8 +307,14 @@ const googleLoginController = async (
     });
 
     return res
-      .cookie("refreshToken", refreshToken, {
+      .cookie(refresh_token, refreshToken, {
         maxAge: 30 * 24 * 60 * 60 * 1000,
+        sameSite: "none",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      })
+      .cookie(access_token, accessToken, {
+        maxAge: 7 * 24 * 60 * 60 * 1000,
         sameSite: "none",
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -312,7 +327,6 @@ const googleLoginController = async (
           userId: user.id,
           email: user.email,
           username: user.username,
-          access_token: accessToken,
         },
       });
   } catch (error) {
@@ -576,7 +590,13 @@ const logoutController = async (
       return next(new ErrorHandler("Error While logging Out User", 400));
     return res
       .status(200)
-      .cookie(token_name, "", {
+      .cookie(refresh_token, "", {
+        maxAge: 0,
+        sameSite: "none",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      })
+      .cookie(access_token, "", {
         maxAge: 0,
         sameSite: "none",
         httpOnly: true,
@@ -591,14 +611,33 @@ const logoutController = async (
     return next(new ErrorHandler("Internal Server Error", 500));
   }
 };
+const validateAccessTokenController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const accessToken = req.cookies[access_token];
+    if (!accessToken)
+      return next(new ErrorHandler("auth Token Not Found", 401));
 
+    return res.status(200).json({
+      success: true,
+      message: "Token is Valid",
+    });
+  } catch (error) {
+    console.log(error);
+    return next(new ErrorHandler("Internal Server Error", 500));
+  }
+};
 export {
+  getAllUsersController,
+  getFriendList,
+  googleLoginController,
   loginController,
+  logoutController,
   refreshAccessTokenController,
   registerController,
   verifyUserController,
-  googleLoginController,
-  getAllUsersController,
-  getFriendList,
-  logoutController,
+  validateAccessTokenController,
 };
