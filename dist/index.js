@@ -34,6 +34,7 @@ const io = new socket_io_1.Server(server, {
     cors: {
         origin: [
             "http://localhost:3000",
+            "http://localhost:5173",
             "https://social-nettwork-frontend.vercel.app",
         ],
         credentials: true,
@@ -46,6 +47,7 @@ app.use(express_1.default.urlencoded({ extended: true }));
 app.use((0, cors_1.default)({
     origin: [
         "http://localhost:3000",
+        "http://localhost:5173",
         "https://social-nettwork-frontend.vercel.app",
     ],
     credentials: true,

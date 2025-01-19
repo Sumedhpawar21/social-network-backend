@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateAccessTokenController = exports.verifyUserController = exports.registerController = exports.refreshAccessTokenController = exports.logoutController = exports.loginController = exports.googleLoginController = exports.getFriendList = exports.getAllUsersController = void 0;
+exports.getUserDetailsById = exports.validateAccessTokenController = exports.verifyUserController = exports.registerController = exports.refreshAccessTokenController = exports.logoutController = exports.loginController = exports.googleLoginController = exports.getFriendList = exports.getAllUsersController = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
@@ -15,6 +15,8 @@ const ErrorClass_1 = require("../utils/ErrorClass");
 const uploadToCloudinary_1 = require("../utils/uploadToCloudinary");
 const userLoginValidation_1 = require("../validators/userLoginValidation");
 const userRegisterValidator_1 = __importDefault(require("../validators/userRegisterValidator"));
+const google_auth_library_1 = require("google-auth-library");
+require("dotenv/config");
 const registerController = async (req, res, next) => {
     try {
         const body = req.body;
@@ -146,18 +148,8 @@ const loginController = async (req, res, next) => {
             email: user.email,
         }, "7d", false);
         return res
-            .cookie(constants_1.refresh_token, refreshToken, {
-            maxAge: 30 * 24 * 60 * 60 * 1000,
-            sameSite: "none",
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-        })
-            .cookie(constants_1.access_token, accesstoken, {
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "none",
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-        })
+            .cookie(constants_1.refresh_token, refreshToken, new constants_1.CookieOptions({ is_refresh: true }))
+            .cookie(constants_1.access_token, accesstoken, new constants_1.CookieOptions({ is_refresh: false }))
             .status(200)
             .json({
             success: true,
@@ -202,12 +194,7 @@ const refreshAccessTokenController = async (req, res, next) => {
             email: email,
         }, "7d", false);
         return res
-            .cookie(constants_1.access_token, newAccessToken, {
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "none",
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-        })
+            .cookie(constants_1.access_token, newAccessToken, new constants_1.CookieOptions({ is_refresh: false }))
             .status(200)
             .json({
             success: true,
@@ -222,18 +209,33 @@ const refreshAccessTokenController = async (req, res, next) => {
 exports.refreshAccessTokenController = refreshAccessTokenController;
 const googleLoginController = async (req, res, next) => {
     try {
-        const { email, username } = req.body;
-        if (!email || !username)
-            return next(new ErrorClass_1.ErrorHandler("Email or Username is Missing", 400));
-        let user = await dbConfig_1.default.user.findUnique({
-            where: { email },
+        const { credentials } = req.body;
+        if (!credentials || !credentials.credential) {
+            return next(new ErrorClass_1.ErrorHandler("Invalid credentials provided", 400));
+        }
+        console.log(credentials, "Received Google credentials");
+        // Validate Google ID token
+        const client = new google_auth_library_1.OAuth2Client(process.env.GOOGLE_ID);
+        const clientData = await client.verifyIdToken({
+            idToken: credentials.credential,
+            audience: process.env.GOOGLE_ID,
         });
+        const payload = clientData.getPayload();
+        if (!payload) {
+            return next(new ErrorClass_1.ErrorHandler("Invalid Google token payload", 400));
+        }
+        const { email, name, picture } = payload;
+        if (!email || !name) {
+            return next(new ErrorClass_1.ErrorHandler("Email or username is missing", 400));
+        }
+        let user = await dbConfig_1.default.user.findUnique({ where: { email } });
         if (!user) {
             user = await dbConfig_1.default.user.create({
                 data: {
-                    email: email,
-                    username: username,
+                    email,
+                    username: name,
                     isVerified: true,
+                    avatarUrl: picture,
                 },
             });
         }
@@ -244,18 +246,8 @@ const googleLoginController = async (req, res, next) => {
             data: { refresh_token: refreshToken },
         });
         return res
-            .cookie(constants_1.refresh_token, refreshToken, {
-            maxAge: 30 * 24 * 60 * 60 * 1000,
-            sameSite: "none",
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-        })
-            .cookie(constants_1.access_token, accessToken, {
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "none",
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-        })
+            .cookie(constants_1.refresh_token, refreshToken, new constants_1.CookieOptions({ is_refresh: true }))
+            .cookie(constants_1.access_token, accessToken, new constants_1.CookieOptions({ is_refresh: false }))
             .status(200)
             .json({
             success: true,
@@ -486,6 +478,53 @@ const getFriendList = async (req, res, next) => {
     }
 };
 exports.getFriendList = getFriendList;
+const getUserDetailsById = async (req, res, next) => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return next(new ErrorClass_1.ErrorHandler("User Not Authenticated", 401));
+        }
+        const user = await dbConfig_1.default.user.findUnique({
+            where: {
+                id: Number(userId),
+            },
+            select: {
+                username: true,
+                avatarUrl: true,
+                bio: true,
+                friendships: {
+                    where: {
+                        OR: [{ friendId: Number(userId) }, { userId: Number(userId) }],
+                    },
+                    select: {
+                        _count: true,
+                    },
+                },
+                posts: {
+                    where: {
+                        user_id: Number(userId),
+                    },
+                    select: {
+                        _count: true,
+                    },
+                },
+            },
+        });
+        if (!user) {
+            return next(new ErrorClass_1.ErrorHandler("User Not Found", 404));
+        }
+        return res.status(200).json({
+            success: true,
+            message: "User Details Fetched Successfully",
+            data: user,
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return next(new ErrorClass_1.ErrorHandler("Internal Server Error", 500));
+    }
+};
+exports.getUserDetailsById = getUserDetailsById;
 const logoutController = async (req, res, next) => {
     try {
         const userId = req.user?.userId;

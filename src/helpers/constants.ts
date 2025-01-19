@@ -1,6 +1,8 @@
 export const refresh_token = "social_refresh_token";
 export const access_token = "social_access_token";
 
+
+
 export const socketEvents = {
   JOINED: "JOINED",
   EXITED: "EXITED",
@@ -17,3 +19,19 @@ export const socketEvents = {
   INCOMING_CALL: "INCOMING_CALL",
   CALL_ENDED: "CALL_ENDED",
 };
+
+export class CookieOptions {
+  maxAge: number;
+  sameSite: "none" | "lax" | "strict";
+  httpOnly: boolean;
+  secure: boolean;
+
+  constructor({ is_refresh }: { is_refresh: boolean }) {
+    this.maxAge = is_refresh
+      ? 30 * 24 * 60 * 60 * 1000
+      : 7 * 24 * 60 * 60 * 1000; // milliseconds
+    this.sameSite = process.env.NODE_ENV === "production" ? "none" : "lax";
+    this.httpOnly = true;
+    this.secure = process.env.NODE_ENV === "production";
+  }
+}

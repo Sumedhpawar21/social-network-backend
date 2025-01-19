@@ -4,12 +4,18 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { ZodError } from "zod";
 import prisma from "../config/dbConfig";
 import { SendMail } from "../config/nodemailerConfig";
-import { access_token, refresh_token } from "../helpers/constants";
+import {
+  access_token,
+  CookieOptions,
+  refresh_token,
+} from "../helpers/constants";
 import { generateToken } from "../helpers/helper";
 import { ErrorHandler } from "../utils/ErrorClass";
 import { uploadFilesToCloudinary } from "../utils/uploadToCloudinary";
 import { userLoginValidation } from "../validators/userLoginValidation";
 import registerSchema from "../validators/userRegisterValidator";
+import { OAuth2Client } from "google-auth-library";
+import "dotenv/config";
 
 const registerController = async (
   req: Request,
@@ -184,18 +190,16 @@ const loginController = async (
     );
 
     return res
-      .cookie(refresh_token, refreshToken, {
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-        sameSite: "none",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-      })
-      .cookie(access_token, accesstoken, {
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: "none",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-      })
+      .cookie(
+        refresh_token,
+        refreshToken,
+        new CookieOptions({ is_refresh: true })
+      )
+      .cookie(
+        access_token,
+        accesstoken,
+        new CookieOptions({ is_refresh: false })
+      )
       .status(200)
       .json({
         success: true,
@@ -249,12 +253,11 @@ const refreshAccessTokenController = async (
       false
     );
     return res
-      .cookie(access_token, newAccessToken, {
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: "none",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-      })
+      .cookie(
+        access_token,
+        newAccessToken,
+        new CookieOptions({ is_refresh: false })
+      )
       .status(200)
       .json({
         success: true,
@@ -271,21 +274,41 @@ const googleLoginController = async (
   next: NextFunction
 ) => {
   try {
-    const { email, username } = req.body;
+    const { credentials } = req.body;
 
-    if (!email || !username)
-      return next(new ErrorHandler("Email or Username is Missing", 400));
+    if (!credentials || !credentials.credential) {
+      return next(new ErrorHandler("Invalid credentials provided", 400));
+    }
 
-    let user = await prisma.user.findUnique({
-      where: { email },
+    console.log(credentials, "Received Google credentials");
+
+    // Validate Google ID token
+    const client = new OAuth2Client(process.env.GOOGLE_ID!);
+    const clientData = await client.verifyIdToken({
+      idToken: credentials.credential,
+      audience: process.env.GOOGLE_ID,
     });
+
+    const payload = clientData.getPayload();
+    if (!payload) {
+      return next(new ErrorHandler("Invalid Google token payload", 400));
+    }
+
+    const { email, name, picture } = payload;
+
+    if (!email || !name) {
+      return next(new ErrorHandler("Email or username is missing", 400));
+    }
+
+    let user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
       user = await prisma.user.create({
         data: {
-          email: email,
-          username: username,
+          email,
+          username: name,
           isVerified: true,
+          avatarUrl: picture,
         },
       });
     }
@@ -300,25 +323,21 @@ const googleLoginController = async (
       { userId: user.id, email: user.email },
       "7d"
     );
-
     await prisma.user.update({
       where: { email: user.email },
       data: { refresh_token: refreshToken },
     });
-
     return res
-      .cookie(refresh_token, refreshToken, {
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-        sameSite: "none",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-      })
-      .cookie(access_token, accessToken, {
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: "none",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-      })
+      .cookie(
+        refresh_token,
+        refreshToken,
+        new CookieOptions({ is_refresh: true })
+      )
+      .cookie(
+        access_token,
+        accessToken,
+        new CookieOptions({ is_refresh: false })
+      )
       .status(200)
       .json({
         success: true,
@@ -334,6 +353,7 @@ const googleLoginController = async (
     return next(new ErrorHandler("Internal Server Error", 500));
   }
 };
+
 const getAllUsersController = async (
   req: Request,
   res: Response,
@@ -568,6 +588,58 @@ const getFriendList = async (
   }
 };
 
+const getUserDetailsById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return next(new ErrorHandler("User Not Authenticated", 401));
+    }
+    const user = await prisma.user.findUnique({
+      where: {
+        id: Number(userId),
+      },
+      select: {
+        username: true,
+        avatarUrl: true,
+        bio: true,
+        friendships: {
+          where: {
+            OR: [{ friendId: Number(userId) }, { userId: Number(userId) }],
+          },
+          select: {
+            _count: true,
+          },
+        },
+        posts: {
+          where: {
+            user_id: Number(userId),
+          },
+          select: {
+            _count: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return next(new ErrorHandler("User Not Found", 404));
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "User Details Fetched Successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error(error);
+    return next(new ErrorHandler("Internal Server Error", 500));
+  }
+};
+
 const logoutController = async (
   req: Request,
   res: Response,
@@ -640,4 +712,5 @@ export {
   registerController,
   verifyUserController,
   validateAccessTokenController,
+  getUserDetailsById,
 };

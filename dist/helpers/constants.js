@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.socketEvents = exports.access_token = exports.refresh_token = void 0;
+exports.CookieOptions = exports.socketEvents = exports.access_token = exports.refresh_token = void 0;
 exports.refresh_token = "social_refresh_token";
 exports.access_token = "social_access_token";
 exports.socketEvents = {
@@ -19,3 +19,14 @@ exports.socketEvents = {
     INCOMING_CALL: "INCOMING_CALL",
     CALL_ENDED: "CALL_ENDED",
 };
+class CookieOptions {
+    constructor({ is_refresh }) {
+        this.maxAge = is_refresh
+            ? 30 * 24 * 60 * 60 * 1000
+            : 7 * 24 * 60 * 60 * 1000; // milliseconds
+        this.sameSite = process.env.NODE_ENV === "production" ? "none" : "lax";
+        this.httpOnly = true;
+        this.secure = process.env.NODE_ENV === "production";
+    }
+}
+exports.CookieOptions = CookieOptions;

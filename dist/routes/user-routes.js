@@ -14,5 +14,6 @@ router.get("/refresh-token", user_controller_js_1.refreshAccessTokenController);
 router.get("/validate-access-token", user_controller_js_1.validateAccessTokenController);
 router.get("/all-users", user_controller_js_1.getAllUsersController);
 router.get("/logout", user_controller_js_1.logoutController);
+router.get("/get-user-details", user_controller_js_1.getUserDetailsById);
 router.get("/friend-list", user_controller_js_1.getFriendList);
 exports.default = router;

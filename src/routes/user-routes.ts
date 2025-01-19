@@ -9,6 +9,7 @@ import {
   getFriendList,
   logoutController,
   validateAccessTokenController,
+  getUserDetailsById,
 } from "../controllers/user-controller.js";
 import { singleAvatar } from "../config/multerConfig.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
@@ -23,5 +24,6 @@ router.get("/refresh-token", refreshAccessTokenController);
 router.get("/validate-access-token", validateAccessTokenController);
 router.get("/all-users", getAllUsersController);
 router.get("/logout", logoutController);
+router.get("/get-user-details", getUserDetailsById);
 router.get("/friend-list", getFriendList);
 export default router;
