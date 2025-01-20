@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
-
+import cookie from "cookie";
 import { ErrorHandler } from "../utils/ErrorClass";
 import { Socket } from "socket.io";
 import { access_token } from "../helpers/constants";
@@ -52,12 +52,13 @@ export const authMiddleware = async (
 
 export const socketAuthMiddleware = async (socket: Socket, next: any) => {
   try {
-    const token = socket.handshake.auth?.token;
-    if (!token) {
-      return next(
-        new ErrorHandler("Authentication token is missing or invalid", 401)
-      );
+    const cookies = socket.handshake.headers.cookie;
+    if (!cookies) {
+      return next(new Error("Authentication token is missing or invalid"));
     }
+    const parsedCookies = cookie.parse(cookies);
+    const token = parsedCookies[access_token];
+    if(!token) return next(new ErrorHandler("Token not Found",400))
     const decodedData = jwt.verify(
       token,
       process.env.JWT_SECRET!
