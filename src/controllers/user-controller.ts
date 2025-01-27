@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextFunction, Request, Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { ZodError } from "zod";
+import { date, ZodError } from "zod";
 import prisma from "../config/dbConfig";
 import { SendMail } from "../config/nodemailerConfig";
 import {
@@ -16,6 +16,7 @@ import { userLoginValidation } from "../validators/userLoginValidation";
 import registerSchema from "../validators/userRegisterValidator";
 import { OAuth2Client } from "google-auth-library";
 import "dotenv/config";
+import { removeAllQueueData } from "bullmq";
 
 const registerController = async (
   req: Request,
@@ -601,6 +602,7 @@ const getUserDetailsById = async (
         id: Number(userId),
       },
       select: {
+        id: true,
         username: true,
         avatarUrl: true,
         bio: true,
@@ -700,6 +702,71 @@ const validateAccessTokenController = async (
     return next(new ErrorHandler("Internal Server Error", 500));
   }
 };
+
+const getUserPostByUserId = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return next(new ErrorHandler("User Not Provided", 404));
+    }
+    const posts = await prisma.post.findMany({
+      where: {
+        user_id: parseInt(userId),
+      },
+      select: {
+        id: true,
+        content: true,
+        description: true,
+        createdAt: true,
+        comments: {
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            user: {
+              select: {
+                id: true,
+                avatarUrl: true,
+                username: true,
+              },
+            },
+          },
+        },
+        likes: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                username: true,
+                id: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (posts.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "Posts Fetched Successfully",
+        data: [],
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      message: "Posts Fetched Successfully",
+      data: posts,
+    });
+  } catch (error) {
+    console.log(error);
+    return next(new ErrorHandler("Internal Server Error", 500));
+  }
+};
 export {
   getAllUsersController,
   getFriendList,
@@ -711,4 +778,5 @@ export {
   verifyUserController,
   validateAccessTokenController,
   getUserDetailsById,
+  getUserPostByUserId,
 };

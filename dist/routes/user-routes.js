@@ -16,4 +16,5 @@ router.get("/all-users", user_controller_js_1.getAllUsersController);
 router.get("/logout", user_controller_js_1.logoutController);
 router.get("/get-user-details", user_controller_js_1.getUserDetailsById);
 router.get("/friend-list", user_controller_js_1.getFriendList);
+router.get("/get-user-posts/:userId", user_controller_js_1.getUserPostByUserId);
 exports.default = router;

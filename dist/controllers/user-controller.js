@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getUserDetailsById = exports.validateAccessTokenController = exports.verifyUserController = exports.registerController = exports.refreshAccessTokenController = exports.logoutController = exports.loginController = exports.googleLoginController = exports.getFriendList = exports.getAllUsersController = void 0;
+exports.getUserPostByUserId = exports.getUserDetailsById = exports.validateAccessTokenController = exports.verifyUserController = exports.registerController = exports.refreshAccessTokenController = exports.logoutController = exports.loginController = exports.googleLoginController = exports.getFriendList = exports.getAllUsersController = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
@@ -488,6 +488,7 @@ const getUserDetailsById = async (req, res, next) => {
                 id: Number(userId),
             },
             select: {
+                id: true,
                 username: true,
                 avatarUrl: true,
                 bio: true,
@@ -581,3 +582,65 @@ const validateAccessTokenController = async (req, res, next) => {
     }
 };
 exports.validateAccessTokenController = validateAccessTokenController;
+const getUserPostByUserId = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        if (!userId) {
+            return next(new ErrorClass_1.ErrorHandler("User Not Provided", 404));
+        }
+        const posts = await dbConfig_1.default.post.findMany({
+            where: {
+                user_id: parseInt(userId),
+            },
+            select: {
+                id: true,
+                content: true,
+                description: true,
+                createdAt: true,
+                comments: {
+                    select: {
+                        id: true,
+                        content: true,
+                        createdAt: true,
+                        user: {
+                            select: {
+                                id: true,
+                                avatarUrl: true,
+                                username: true,
+                            },
+                        },
+                    },
+                },
+                likes: {
+                    select: {
+                        id: true,
+                        user: {
+                            select: {
+                                username: true,
+                                id: true,
+                                avatarUrl: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (posts.length === 0) {
+            return res.status(200).json({
+                success: true,
+                message: "Posts Fetched Successfully",
+                data: [],
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            message: "Posts Fetched Successfully",
+            data: posts,
+        });
+    }
+    catch (error) {
+        console.log(error);
+        return next(new ErrorClass_1.ErrorHandler("Internal Server Error", 500));
+    }
+};
+exports.getUserPostByUserId = getUserPostByUserId;
