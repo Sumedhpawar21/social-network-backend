@@ -479,7 +479,7 @@ const getFriendList = async (req, res, next) => {
 exports.getFriendList = getFriendList;
 const getUserDetailsById = async (req, res, next) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.query.userId || req.user?.userId;
         if (!userId) {
             return next(new ErrorClass_1.ErrorHandler("User Not Authenticated", 401));
         }

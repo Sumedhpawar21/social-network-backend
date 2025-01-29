@@ -593,7 +593,7 @@ const getUserDetailsById = async (
   next: NextFunction
 ) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.query.userId || req.user?.userId;
     if (!userId) {
       return next(new ErrorHandler("User Not Authenticated", 401));
     }
