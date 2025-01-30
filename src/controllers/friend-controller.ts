@@ -98,3 +98,44 @@ export const handleFriendRequest = async (
     return next(new ErrorHandler("Internal Server Error", 500));
   }
 };
+
+export const getRecommendedFriends = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return next(new ErrorHandler("UserId Not Provided", 500));
+    const recommendedUsers = await prisma.$queryRaw`
+    SELECT 
+    u.id, 
+    u.username, 
+    u."avatarUrl",
+    f.status 
+  FROM "User" u
+  LEFT JOIN "Friendship" f ON 
+    (f."userId" = ${userId} AND f."friendId" = u.id)
+    OR (f."userId" = u.id AND f."friendId" = ${userId})
+  WHERE u.id != ${userId} 
+    AND (f.status IS NULL OR f.status != 'accepted') 
+  ORDER BY RANDOM()
+  LIMIT 5;
+    `;
+    if (!recommendedUsers) {
+      return res.status(200).json({
+        success: true,
+        message: `Recommended Users Fetched Successfully`,
+        data: [],
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      message: `Recommended Users Fetched Successfully`,
+      data: recommendedUsers,
+    });
+  } catch (error) {
+    console.log(error);
+    return next(new ErrorHandler("Internal Server Error", 500));
+  }
+};
