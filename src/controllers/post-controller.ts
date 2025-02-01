@@ -4,6 +4,7 @@ import prisma from "../config/dbConfig";
 import { ErrorHandler } from "../utils/ErrorClass";
 import { uploadFilesToCloudinary } from "../utils/uploadToCloudinary";
 import { validateRequest } from "../validators/addPostValidation";
+import { sendSseNotification } from "./sse-controller";
 
 const addPostController = async (
   req: Request,
@@ -173,9 +174,23 @@ const likePostController = async (
       return next(new ErrorHandler("UserId or postId not Provided", 404));
     }
 
+    const user = await prisma.user.findUnique({
+      where: {
+        id: parseInt(user_id),
+      },
+      select: {
+        avatarUrl: true,
+        username: true,
+      },
+    });
     const post = await prisma.post.findUnique({
       where: { id: post_id },
       include: {
+        user: {
+          select: {
+            id: true,
+          },
+        },
         likes: {
           select: { user_id: true },
         },
@@ -200,6 +215,21 @@ const likePostController = async (
           user_id: Number(user_id),
         },
       });
+
+      const notificationPayload = {
+        message: `${user?.username} Liked your Post`,
+        user,
+        post,
+      };
+      const notification = await prisma.notification.create({
+        data: {
+          notificationType: "POST_LIKED",
+          message: `${user?.username} Liked Your Post`,
+          recipientId: post?.user_id!,
+          senderId: parseInt(user_id)!,
+        },
+      });
+      sendSseNotification(post?.user_id!, notificationPayload);
     }
 
     return res.status(200).json({
@@ -229,7 +259,11 @@ const addCommentController = async (
     if (comment.length > 300) {
       return next(new ErrorHandler("Comment is too long", 400));
     }
-
+    const post = await prisma.post.findUnique({
+      where: {
+        id: parseInt(postId),
+      },
+    });
     const newComment = await prisma.comment.create({
       data: {
         content: comment,
@@ -237,6 +271,31 @@ const addCommentController = async (
         user_id: Number(userId),
       },
     });
+    const user = await prisma.user.findFirst({
+      where: {
+        id: parseInt(userId)!,
+      },
+      select: {
+        avatarUrl: true,
+        id: true,
+        username: true,
+      },
+    });
+
+    const notification = await prisma.notification.create({
+      data: {
+        notificationType: "POST_COMMENTED",
+        message: `${user?.username} Commented On Your Post`,
+        recipientId: post?.user_id!,
+        senderId: parseInt(userId)!,
+      },
+    });
+    const notificationPayload = {
+      message: `${user?.username} Commented On Your Post`,
+      user,
+      post,
+    };
+    sendSseNotification(post?.user_id!, notificationPayload);
 
     return res.status(201).json({
       success: true,
