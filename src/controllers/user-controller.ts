@@ -337,6 +337,11 @@ const googleLoginController = async (
       .json({
         success: true,
         message: "Login With Google Successfully",
+        data: {
+          userId: user.id,
+          email: user.email,
+          username: user.username,
+        },
       });
   } catch (error) {
     console.error("Error during Google login:", error);

@@ -3,8 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getUserPostByUserId = exports.getUserDetailsById = exports.validateAccessTokenController = exports.verifyUserController = exports.registerController = exports.refreshAccessTokenController = exports.logoutController = exports.loginController = exports.googleLoginController = exports.getFriendList = exports.getAllUsersController = void 0;
+exports.verifyUserController = exports.validateAccessTokenController = exports.registerController = exports.refreshAccessTokenController = exports.logoutController = exports.loginController = exports.googleLoginController = exports.getUserPostByUserId = exports.getUserDetailsById = exports.getFriendList = exports.getAllUsersController = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+require("dotenv/config");
+const google_auth_library_1 = require("google-auth-library");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
 const dbConfig_1 = __importDefault(require("../config/dbConfig"));
@@ -15,8 +17,6 @@ const ErrorClass_1 = require("../utils/ErrorClass");
 const uploadToCloudinary_1 = require("../utils/uploadToCloudinary");
 const userLoginValidation_1 = require("../validators/userLoginValidation");
 const userRegisterValidator_1 = __importDefault(require("../validators/userRegisterValidator"));
-const google_auth_library_1 = require("google-auth-library");
-require("dotenv/config");
 const registerController = async (req, res, next) => {
     try {
         const body = req.body;
@@ -246,11 +246,16 @@ const googleLoginController = async (req, res, next) => {
         });
         return res
             .status(200)
-            .cookie(constants_1.refresh_token, "", new constants_1.CookieOptions({ logout: true }))
-            .cookie(constants_1.access_token, "", new constants_1.CookieOptions({ logout: true }))
+            .cookie(constants_1.refresh_token, refreshToken, new constants_1.CookieOptions({ is_refresh: true }))
+            .cookie(constants_1.access_token, accessToken, new constants_1.CookieOptions({}))
             .json({
             success: true,
-            message: "Logout Successfully",
+            message: "Login With Google Successfully",
+            data: {
+                userId: user.id,
+                email: user.email,
+                username: user.username,
+            },
         });
     }
     catch (error) {
@@ -558,18 +563,8 @@ const logoutController = async (req, res, next) => {
         }
         return res
             .status(200)
-            .cookie(constants_1.refresh_token, "", {
-            maxAge: 0,
-            sameSite: "none",
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-        })
-            .cookie(constants_1.access_token, "", {
-            maxAge: 0,
-            sameSite: "none",
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-        })
+            .cookie(constants_1.refresh_token, "", new constants_1.CookieOptions({ logout: true }))
+            .cookie(constants_1.access_token, "", new constants_1.CookieOptions({ logout: true }))
             .json({
             success: true,
             message: "Logout Successfully",
