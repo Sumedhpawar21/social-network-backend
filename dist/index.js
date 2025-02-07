@@ -35,6 +35,7 @@ const io = new socket_io_1.Server(server, {
         origin: [
             "http://localhost:3000",
             "http://localhost:5173",
+            "https://6fc0-103-203-230-55.ngrok-free.app",
             "https://social-nettwork-frontend.vercel.app",
         ],
         credentials: true,
@@ -48,6 +49,7 @@ app.use((0, cors_1.default)({
     origin: [
         "http://localhost:3000",
         "http://localhost:5173",
+        "https://6fc0-103-203-230-55.ngrok-free.app",
         "https://social-nettwork-frontend.vercel.app",
     ],
     credentials: true,

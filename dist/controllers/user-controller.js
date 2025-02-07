@@ -245,17 +245,12 @@ const googleLoginController = async (req, res, next) => {
             data: { refresh_token: refreshToken },
         });
         return res
-            .cookie(constants_1.refresh_token, refreshToken, new constants_1.CookieOptions({ is_refresh: true }))
-            .cookie(constants_1.access_token, accessToken, new constants_1.CookieOptions({ is_refresh: false }))
             .status(200)
+            .cookie(constants_1.refresh_token, "", new constants_1.CookieOptions({ logout: true }))
+            .cookie(constants_1.access_token, "", new constants_1.CookieOptions({ logout: true }))
             .json({
             success: true,
-            message: `Welcome ${user.username}`,
-            data: {
-                userId: user.id,
-                email: user.email,
-                username: user.username,
-            },
+            message: "Logout Successfully",
         });
     }
     catch (error) {
@@ -531,16 +526,13 @@ const logoutController = async (req, res, next) => {
         if (!userId) {
             return next(new ErrorClass_1.ErrorHandler("UserId Not Provided", 404));
         }
-        const logoutUser = await dbConfig_1.default.user.update({
-            data: {
-                refresh_token: null,
-            },
-            where: {
-                id: Number(userId),
-            },
+        const logoutUser = await dbConfig_1.default.user.updateMany({
+            data: { refresh_token: null },
+            where: { id: typeof userId === "number" ? userId : Number(userId) },
         });
-        if (!logoutUser)
-            return next(new ErrorClass_1.ErrorHandler("Error While logging Out User", 400));
+        if (logoutUser.count === 0) {
+            return next(new ErrorClass_1.ErrorHandler("User not found", 404));
+        }
         return res
             .status(200)
             .cookie(constants_1.refresh_token, "", {
@@ -561,7 +553,7 @@ const logoutController = async (req, res, next) => {
         });
     }
     catch (error) {
-        console.log(error);
+        console.error(error);
         return next(new ErrorClass_1.ErrorHandler("Internal Server Error", 500));
     }
 };

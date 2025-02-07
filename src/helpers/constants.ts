@@ -1,8 +1,6 @@
 export const refresh_token = "social_refresh_token";
 export const access_token = "social_access_token";
 
-
-
 export const socketEvents = {
   JOINED: "JOINED",
   EXITED: "EXITED",
@@ -25,13 +23,23 @@ export class CookieOptions {
   sameSite: "none" | "lax" | "strict";
   httpOnly: boolean;
   secure: boolean;
+  path: string;
 
-  constructor({ is_refresh }: { is_refresh: boolean }) {
-    this.maxAge = is_refresh
+  constructor({
+    is_refresh,
+    logout = false,
+  }: {
+    is_refresh?: boolean;
+    logout?: boolean;
+  }) {
+    this.maxAge = logout
+      ? 0
+      : is_refresh
       ? 30 * 24 * 60 * 60 * 1000
-      : 7 * 24 * 60 * 60 * 1000; 
+      : 7 * 24 * 60 * 60 * 1000;
     this.sameSite = process.env.NODE_ENV === "production" ? "none" : "lax";
     this.httpOnly = true;
     this.secure = process.env.NODE_ENV === "production";
+    this.path = "/";
   }
 }

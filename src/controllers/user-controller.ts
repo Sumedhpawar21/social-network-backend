@@ -326,26 +326,14 @@ const googleLoginController = async (
       where: { email: user.email },
       data: { refresh_token: refreshToken },
     });
+
     return res
-      .cookie(
-        refresh_token,
-        refreshToken,
-        new CookieOptions({ is_refresh: true })
-      )
-      .cookie(
-        access_token,
-        accessToken,
-        new CookieOptions({ is_refresh: false })
-      )
       .status(200)
+      .cookie(refresh_token, "", new CookieOptions({ logout: true }))
+      .cookie(access_token, "", new CookieOptions({ logout: true }))
       .json({
         success: true,
-        message: `Welcome ${user.username}`,
-        data: {
-          userId: user.id,
-          email: user.email,
-          username: user.username,
-        },
+        message: "Logout Successfully",
       });
   } catch (error) {
     console.error("Error during Google login:", error);
@@ -650,16 +638,16 @@ const logoutController = async (
     if (!userId) {
       return next(new ErrorHandler("UserId Not Provided", 404));
     }
-    const logoutUser = await prisma.user.update({
-      data: {
-        refresh_token: null,
-      },
-      where: {
-        id: Number(userId),
-      },
+
+    const logoutUser = await prisma.user.updateMany({
+      data: { refresh_token: null },
+      where: { id: typeof userId === "number" ? userId : Number(userId) },
     });
-    if (!logoutUser)
-      return next(new ErrorHandler("Error While logging Out User", 400));
+
+    if (logoutUser.count === 0) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
     return res
       .status(200)
       .cookie(refresh_token, "", {
@@ -679,10 +667,11 @@ const logoutController = async (
         message: "Logout Successfully",
       });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return next(new ErrorHandler("Internal Server Error", 500));
   }
 };
+
 const validateAccessTokenController = async (
   req: Request,
   res: Response,

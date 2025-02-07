@@ -20,13 +20,16 @@ exports.socketEvents = {
     CALL_ENDED: "CALL_ENDED",
 };
 class CookieOptions {
-    constructor({ is_refresh }) {
-        this.maxAge = is_refresh
-            ? 30 * 24 * 60 * 60 * 1000
-            : 7 * 24 * 60 * 60 * 1000;
+    constructor({ is_refresh, logout = false, }) {
+        this.maxAge = logout
+            ? 0
+            : is_refresh
+                ? 30 * 24 * 60 * 60 * 1000
+                : 7 * 24 * 60 * 60 * 1000;
         this.sameSite = process.env.NODE_ENV === "production" ? "none" : "lax";
         this.httpOnly = true;
         this.secure = process.env.NODE_ENV === "production";
+        this.path = "/";
     }
 }
 exports.CookieOptions = CookieOptions;
