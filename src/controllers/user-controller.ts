@@ -1,7 +1,9 @@
 import bcrypt from "bcryptjs";
+import "dotenv/config";
 import { NextFunction, Request, Response } from "express";
+import { OAuth2Client } from "google-auth-library";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { date, ZodError } from "zod";
+import { ZodError } from "zod";
 import prisma from "../config/dbConfig";
 import { SendMail } from "../config/nodemailerConfig";
 import {
@@ -14,9 +16,6 @@ import { ErrorHandler } from "../utils/ErrorClass";
 import { uploadFilesToCloudinary } from "../utils/uploadToCloudinary";
 import { userLoginValidation } from "../validators/userLoginValidation";
 import registerSchema from "../validators/userRegisterValidator";
-import { OAuth2Client } from "google-auth-library";
-import "dotenv/config";
-import { removeAllQueueData } from "bullmq";
 
 const registerController = async (
   req: Request,
@@ -329,11 +328,15 @@ const googleLoginController = async (
 
     return res
       .status(200)
-      .cookie(refresh_token, "", new CookieOptions({ logout: true }))
-      .cookie(access_token, "", new CookieOptions({ logout: true }))
+      .cookie(
+        refresh_token,
+        refreshToken,
+        new CookieOptions({ is_refresh: true })
+      )
+      .cookie(access_token, accessToken, new CookieOptions({}))
       .json({
         success: true,
-        message: "Logout Successfully",
+        message: "Login With Google Successfully",
       });
   } catch (error) {
     console.error("Error during Google login:", error);
@@ -437,7 +440,7 @@ const getFriendList = async (
   next: NextFunction
 ) => {
   try {
-    const userId = Number(req.query.userId)|| req.user?.userId;
+    const userId = Number(req.query.userId) || req.user?.userId;
     const { username } = req.query;
 
     if (!userId) {
@@ -645,7 +648,7 @@ const getUserDetailsById = async (
       message: "User Details Fetched Successfully",
       data: {
         ...user,
-        friendships: allFriendships, 
+        friendships: allFriendships,
       },
     });
   } catch (error) {
@@ -676,18 +679,8 @@ const logoutController = async (
 
     return res
       .status(200)
-      .cookie(refresh_token, "", {
-        maxAge: 0,
-        sameSite: "none",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-      })
-      .cookie(access_token, "", {
-        maxAge: 0,
-        sameSite: "none",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-      })
+      .cookie(refresh_token, "", new CookieOptions({ logout: true }))
+      .cookie(access_token, "", new CookieOptions({ logout: true }))
       .json({
         success: true,
         message: "Logout Successfully",
@@ -785,13 +778,13 @@ const getUserPostByUserId = async (
 export {
   getAllUsersController,
   getFriendList,
+  getUserDetailsById,
+  getUserPostByUserId,
   googleLoginController,
   loginController,
   logoutController,
   refreshAccessTokenController,
   registerController,
-  verifyUserController,
   validateAccessTokenController,
-  getUserDetailsById,
-  getUserPostByUserId,
+  verifyUserController,
 };
