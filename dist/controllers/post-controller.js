@@ -9,6 +9,7 @@ const dbConfig_1 = __importDefault(require("../config/dbConfig"));
 const ErrorClass_1 = require("../utils/ErrorClass");
 const uploadToCloudinary_1 = require("../utils/uploadToCloudinary");
 const addPostValidation_1 = require("../validators/addPostValidation");
+const sse_controller_1 = require("./sse-controller");
 const addPostController = async (req, res, next) => {
     try {
         const { body, file } = (0, addPostValidation_1.validateRequest)(req);
@@ -161,9 +162,23 @@ const likePostController = async (req, res, next) => {
         if (!user_id || !post_id) {
             return next(new ErrorClass_1.ErrorHandler("UserId or postId not Provided", 404));
         }
+        const user = await dbConfig_1.default.user.findUnique({
+            where: {
+                id: parseInt(user_id),
+            },
+            select: {
+                avatarUrl: true,
+                username: true,
+            },
+        });
         const post = await dbConfig_1.default.post.findUnique({
             where: { id: post_id },
             include: {
+                user: {
+                    select: {
+                        id: true,
+                    },
+                },
                 likes: {
                     select: { user_id: true },
                 },
@@ -185,6 +200,20 @@ const likePostController = async (req, res, next) => {
                     user_id: Number(user_id),
                 },
             });
+            const notificationPayload = {
+                message: `${user?.username} Liked your Post`,
+                user,
+                post,
+            };
+            const notification = await dbConfig_1.default.notification.create({
+                data: {
+                    notificationType: "POST_LIKED",
+                    message: `${user?.username} Liked Your Post`,
+                    recipientId: post?.user_id,
+                    senderId: parseInt(user_id),
+                },
+            });
+            (0, sse_controller_1.sendSseNotification)(post?.user_id, notificationPayload);
         }
         return res.status(200).json({
             success: true,
@@ -207,6 +236,11 @@ const addCommentController = async (req, res, next) => {
         if (comment.length > 300) {
             return next(new ErrorClass_1.ErrorHandler("Comment is too long", 400));
         }
+        const post = await dbConfig_1.default.post.findUnique({
+            where: {
+                id: parseInt(postId),
+            },
+        });
         const newComment = await dbConfig_1.default.comment.create({
             data: {
                 content: comment,
@@ -214,6 +248,30 @@ const addCommentController = async (req, res, next) => {
                 user_id: Number(userId),
             },
         });
+        const user = await dbConfig_1.default.user.findFirst({
+            where: {
+                id: parseInt(userId),
+            },
+            select: {
+                avatarUrl: true,
+                id: true,
+                username: true,
+            },
+        });
+        const notification = await dbConfig_1.default.notification.create({
+            data: {
+                notificationType: "POST_COMMENTED",
+                message: `${user?.username} Commented On Your Post`,
+                recipientId: post?.user_id,
+                senderId: parseInt(userId),
+            },
+        });
+        const notificationPayload = {
+            message: `${user?.username} Commented On Your Post`,
+            user,
+            post,
+        };
+        (0, sse_controller_1.sendSseNotification)(post?.user_id, notificationPayload);
         return res.status(201).json({
             success: true,
             message: `Comment added to Post ${postId}`,

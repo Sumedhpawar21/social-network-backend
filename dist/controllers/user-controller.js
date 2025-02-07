@@ -339,7 +339,7 @@ const getAllUsersController = async (req, res, next) => {
 exports.getAllUsersController = getAllUsersController;
 const getFriendList = async (req, res, next) => {
     try {
-        const userId = req.user?.userId;
+        const userId = Number(req.query.userId) || req.user?.userId;
         const { username } = req.query;
         if (!userId) {
             return next(new ErrorClass_1.ErrorHandler("User not authenticated", 401));
@@ -478,6 +478,7 @@ const getUserDetailsById = async (req, res, next) => {
         if (!userId) {
             return next(new ErrorClass_1.ErrorHandler("User Not Authenticated", 401));
         }
+        console.log(userId);
         const user = await dbConfig_1.default.user.findUnique({
             where: {
                 id: Number(userId),
@@ -489,16 +490,25 @@ const getUserDetailsById = async (req, res, next) => {
                 bio: true,
                 friendships: {
                     where: {
-                        OR: [{ friendId: Number(userId) }, { userId: Number(userId) }],
+                        status: "accepted",
                     },
                     select: {
-                        _count: true,
+                        id: true,
+                        userId: true,
+                        friendId: true,
+                    },
+                },
+                friendOf: {
+                    where: {
+                        status: "accepted",
+                    },
+                    select: {
+                        id: true,
+                        userId: true,
+                        friendId: true,
                     },
                 },
                 posts: {
-                    where: {
-                        user_id: Number(userId),
-                    },
                     select: {
                         _count: true,
                     },
@@ -508,10 +518,23 @@ const getUserDetailsById = async (req, res, next) => {
         if (!user) {
             return next(new ErrorClass_1.ErrorHandler("User Not Found", 404));
         }
+        const allFriendships = [
+            ...user.friendships.map((f) => ({
+                id: f.id,
+                friendId: f.friendId,
+            })),
+            ...user.friendOf.map((f) => ({
+                id: f.id,
+                friendId: f.userId,
+            })),
+        ];
         return res.status(200).json({
             success: true,
             message: "User Details Fetched Successfully",
-            data: user,
+            data: {
+                ...user,
+                friendships: allFriendships,
+            },
         });
     }
     catch (error) {
