@@ -467,7 +467,6 @@ const getUserDetailsById = async (req, res, next) => {
         if (!userId) {
             return next(new ErrorClass_1.ErrorHandler("User Not Authenticated", 401));
         }
-        console.log(userId);
         const user = await dbConfig_1.default.user.findUnique({
             where: {
                 id: Number(userId),
@@ -476,6 +475,7 @@ const getUserDetailsById = async (req, res, next) => {
                 id: true,
                 username: true,
                 avatarUrl: true,
+                email: true,
                 bio: true,
                 friendships: {
                     where: {

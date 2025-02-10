@@ -577,8 +577,6 @@ const getUserDetailsById = async (
       return next(new ErrorHandler("User Not Authenticated", 401));
     }
 
-    console.log(userId);
-
     const user = await prisma.user.findUnique({
       where: {
         id: Number(userId),
@@ -587,6 +585,7 @@ const getUserDetailsById = async (
         id: true,
         username: true,
         avatarUrl: true,
+        email:true,
         bio: true,
         friendships: {
           where: {
