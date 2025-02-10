@@ -659,7 +659,8 @@ const updateUserData = async (req, res, next) => {
                 where: { id: Number(userId) },
                 select: { avatarUrl: true },
             });
-            if (prevAvatar?.avatarUrl) {
+            if (prevAvatar?.avatarUrl &&
+                prevAvatar.avatarUrl.includes("res.cloudinary.com")) {
                 const deleteResult = await cloudinaryConfig_1.cloudinary.uploader.destroy((0, helper_1.extractImagePublicId)(prevAvatar.avatarUrl));
                 if (deleteResult.result !== "ok") {
                     return next(new ErrorClass_1.ErrorHandler("Error updating Avatar", 400));

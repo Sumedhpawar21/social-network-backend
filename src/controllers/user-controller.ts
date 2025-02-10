@@ -790,7 +790,10 @@ const updateUserData = async (
         select: { avatarUrl: true },
       });
 
-      if (prevAvatar?.avatarUrl) {
+      if (
+        prevAvatar?.avatarUrl &&
+        prevAvatar.avatarUrl.includes("res.cloudinary.com")
+      ) {
         const deleteResult = await cloudinary.uploader.destroy(
           extractImagePublicId(prevAvatar.avatarUrl)
         );
@@ -823,6 +826,7 @@ const updateUserData = async (
     return next(new ErrorHandler("Internal Server Error", 500));
   }
 };
+
 
 export {
   getAllUsersController,
