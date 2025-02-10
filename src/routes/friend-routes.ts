@@ -13,6 +13,6 @@ router.use(authMiddleware);
 router.post("/add-friend", addFriendController);
 router.post("/handle-friend-request", handleFriendRequest);
 router.get("/get-recommended-friends", getRecommendedFriends);
-router.patch("/unfriend/:friendshipId", unfriendFriend);
+router.delete("/unfriend/:friendshipId", unfriendFriend);
 
 export default router;

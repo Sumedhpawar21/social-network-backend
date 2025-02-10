@@ -447,7 +447,6 @@ const getFriendList = async (req, res, next) => {
                 };
             }),
         ];
-        console.log(friends);
         return res.status(200).json({
             success: true,
             message: `Friends fetched successfully for userId: ${userId}`,

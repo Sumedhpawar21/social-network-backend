@@ -552,7 +552,6 @@ const getFriendList = async (
         };
       }),
     ];
-    console.log(friends);
 
     return res.status(200).json({
       success: true,
