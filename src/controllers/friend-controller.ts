@@ -139,3 +139,36 @@ export const getRecommendedFriends = async (
     return next(new ErrorHandler("Internal Server Error", 500));
   }
 };
+
+export const unfriendFriend = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { friendshipId } = req.params;
+
+    if (!friendshipId || isNaN(Number(friendshipId))) {
+      return next(new ErrorHandler("Invalid Friendship ID", 400));
+    }
+
+    const friendship = await prisma.friendship.findUnique({
+      where: { id: Number(friendshipId) },
+    });
+
+    if (!friendship) {
+      return next(new ErrorHandler("Friendship not found", 404));
+    }
+    await prisma.friendship.delete({
+      where: { id: Number(friendshipId) },
+    });
+
+    return res.status(200).json({
+      status: true,
+      message: "Unfriended Successfully",
+    });
+  } catch (error) {
+    console.error("Error in unfriendFriend:", error);
+    return next(new ErrorHandler("Internal Server Error", 500));
+  }
+};

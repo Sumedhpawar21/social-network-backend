@@ -350,9 +350,7 @@ const getFriendList = async (req, res, next) => {
             return next(new ErrorClass_1.ErrorHandler("User not authenticated", 401));
         }
         const user = await dbConfig_1.default.user.findUnique({
-            where: {
-                id: Number(userId),
-            },
+            where: { id: Number(userId) },
             include: {
                 friendships: {
                     where: {
@@ -372,20 +370,11 @@ const getFriendList = async (req, res, next) => {
                                 chatMemberships: {
                                     where: {
                                         chat: {
-                                            members: {
-                                                some: {
-                                                    userId: Number(userId),
-                                                },
-                                            },
+                                            members: { some: { userId: Number(userId) } },
                                         },
                                     },
                                     include: {
-                                        chat: {
-                                            select: {
-                                                id: true,
-                                                last_message: true,
-                                            },
-                                        },
+                                        chat: { select: { id: true, last_message: true } },
                                     },
                                 },
                             },
@@ -410,20 +399,11 @@ const getFriendList = async (req, res, next) => {
                                 chatMemberships: {
                                     where: {
                                         chat: {
-                                            members: {
-                                                some: {
-                                                    userId: Number(userId),
-                                                },
-                                            },
+                                            members: { some: { userId: Number(userId) } },
                                         },
                                     },
                                     include: {
-                                        chat: {
-                                            select: {
-                                                id: true,
-                                                last_message: true,
-                                            },
-                                        },
+                                        chat: { select: { id: true, last_message: true } },
                                     },
                                 },
                             },
@@ -450,6 +430,7 @@ const getFriendList = async (req, res, next) => {
                         id: chat?.id ?? null,
                         last_message: chat?.last_message ?? null,
                     },
+                    friendshipId: friendship.id,
                 };
             }),
             ...user.friendOf.map((friendOf) => {
@@ -462,9 +443,11 @@ const getFriendList = async (req, res, next) => {
                         id: chat?.id ?? null,
                         last_message: chat?.last_message ?? null,
                     },
+                    friendshipId: friendOf.id,
                 };
             }),
         ];
+        console.log(friends);
         return res.status(200).json({
             success: true,
             message: `Friends fetched successfully for userId: ${userId}`,
