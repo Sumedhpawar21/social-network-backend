@@ -14,7 +14,6 @@ import chatRoutes from "./routes/chat-routes.js";
 import friendRoutes from "./routes/friend-routes";
 import notificationRoutes from "./routes/notification-routes.js";
 import postRoutes from "./routes/post-routes.js";
-import streamRoutes from "./routes/stream-routes.js";
 import authRoutes from "./routes/user-routes.js";
 import { setupSocket } from "./socket.js";
 
@@ -88,16 +87,9 @@ app.use("/api/post", postRoutes);
 app.use("/api/friends", friendRoutes);
 app.use("/api/chat", chatRoutes);
 
-app.use("/api/stream", streamRoutes);
 
-// cron.schedule("*/10 * * * *", async () => {
-//   try {
-//     await axios.get("https://social-network-backend-5rrl.onrender.com");
-//     console.log("Server is up and running");
-//   } catch (error: any) {
-//     console.error("Error pinging server:", error.message);
-//   }
-// });
+
+
 
 app.use(errorMiddleware);
 server.listen(PORT, () => console.log(`PORT Running ON PORT ${PORT}`));
