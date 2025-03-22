@@ -27,7 +27,7 @@ model User {
   sentNotifications     Notification[] @relation("SenderNotifications")
   receivedNotifications Notification[] @relation("RecipientNotifications")
   chatMemberships       ChatMember[]
-  liveStreams           LiveStreams[]
+
 }
 
 enum FriendshipStatus {
@@ -127,9 +127,4 @@ model ChatMember {
   @@id([chatId, userId])
 }
 
-model LiveStreams {
-  id       Int    @id @default(autoincrement())
-  userId   Int
-  streamId String @unique
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
+

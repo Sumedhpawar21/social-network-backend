@@ -18,7 +18,6 @@ const chat_routes_js_1 = __importDefault(require("./routes/chat-routes.js"));
 const friend_routes_1 = __importDefault(require("./routes/friend-routes"));
 const notification_routes_js_1 = __importDefault(require("./routes/notification-routes.js"));
 const post_routes_js_1 = __importDefault(require("./routes/post-routes.js"));
-const stream_routes_js_1 = __importDefault(require("./routes/stream-routes.js"));
 const user_routes_js_1 = __importDefault(require("./routes/user-routes.js"));
 const socket_js_1 = require("./socket.js");
 // PORT
@@ -79,14 +78,5 @@ app.use("/api/notification", notification_routes_js_1.default);
 app.use("/api/post", post_routes_js_1.default);
 app.use("/api/friends", friend_routes_1.default);
 app.use("/api/chat", chat_routes_js_1.default);
-app.use("/api/stream", stream_routes_js_1.default);
-// cron.schedule("*/10 * * * *", async () => {
-//   try {
-//     await axios.get("https://social-network-backend-5rrl.onrender.com");
-//     console.log("Server is up and running");
-//   } catch (error: any) {
-//     console.error("Error pinging server:", error.message);
-//   }
-// });
 app.use(ErrorMiddleware_js_1.errorMiddleware);
 server.listen(PORT, () => console.log(`PORT Running ON PORT ${PORT}`));
