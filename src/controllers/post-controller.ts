@@ -196,7 +196,9 @@ const likePostController = async (
         },
       },
     });
-
+    if (!post) {
+      return next(new ErrorHandler("Post Not Found For This PostId", 400));
+    }
     const checkLikedPost = post?.likes.find(
       (like) => like.user_id === Number(user_id)
     );
@@ -216,20 +218,24 @@ const likePostController = async (
         },
       });
 
-      const notificationPayload = {
-        message: `${user?.username} Liked your Post`,
-        user,
-        post,
-      };
-      const notification = await prisma.notification.create({
-        data: {
-          notificationType: "POST_LIKED",
-          message: `${user?.username} Liked Your Post`,
-          recipientId: post?.user_id!,
-          senderId: parseInt(user_id)!,
-        },
-      });
-      sendSseNotification(post?.user_id!, notificationPayload);
+      if (post.user.id !== Number(user_id)) {
+        const notificationPayload = {
+          message: `${user?.username} Liked your Post`,
+          user,
+          post,
+        };
+
+        const notification = await prisma.notification.create({
+          data: {
+            notificationType: "POST_LIKED",
+            message: `${user?.username} Liked Your Post`,
+            recipientId: post.user.id,
+            senderId: parseInt(user_id),
+          },
+        });
+
+        sendSseNotification(post.user.id, notificationPayload);
+      }
     }
 
     return res.status(200).json({

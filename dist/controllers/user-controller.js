@@ -705,6 +705,9 @@ const getUserPostByUserId = async (req, res, next) => {
                     },
                 },
             },
+            orderBy: {
+                createdAt: "desc",
+            },
         });
         if (posts.length === 0) {
             return res.status(200).json({

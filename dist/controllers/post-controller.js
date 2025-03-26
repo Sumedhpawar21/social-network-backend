@@ -184,6 +184,9 @@ const likePostController = async (req, res, next) => {
                 },
             },
         });
+        if (!post) {
+            return next(new ErrorClass_1.ErrorHandler("Post Not Found For This PostId", 400));
+        }
         const checkLikedPost = post?.likes.find((like) => like.user_id === Number(user_id));
         if (checkLikedPost) {
             await dbConfig_1.default.like.deleteMany({
@@ -200,20 +203,22 @@ const likePostController = async (req, res, next) => {
                     user_id: Number(user_id),
                 },
             });
-            const notificationPayload = {
-                message: `${user?.username} Liked your Post`,
-                user,
-                post,
-            };
-            const notification = await dbConfig_1.default.notification.create({
-                data: {
-                    notificationType: "POST_LIKED",
-                    message: `${user?.username} Liked Your Post`,
-                    recipientId: post?.user_id,
-                    senderId: parseInt(user_id),
-                },
-            });
-            (0, sse_controller_1.sendSseNotification)(post?.user_id, notificationPayload);
+            if (post.user.id !== Number(user_id)) {
+                const notificationPayload = {
+                    message: `${user?.username} Liked your Post`,
+                    user,
+                    post,
+                };
+                const notification = await dbConfig_1.default.notification.create({
+                    data: {
+                        notificationType: "POST_LIKED",
+                        message: `${user?.username} Liked Your Post`,
+                        recipientId: post.user.id,
+                        senderId: parseInt(user_id),
+                    },
+                });
+                (0, sse_controller_1.sendSseNotification)(post.user.id, notificationPayload);
+            }
         }
         return res.status(200).json({
             success: true,

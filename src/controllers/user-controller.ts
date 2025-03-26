@@ -852,6 +852,9 @@ const getUserPostByUserId = async (
           },
         },
       },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
     if (posts.length === 0) {
       return res.status(200).json({
