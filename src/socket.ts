@@ -33,17 +33,20 @@ const setupSocket = async (io: Server) => {
           chatId,
           memberIds,
           message,
+          tempId,
         }: {
           chatId: number;
           memberIds: number[];
           message: string;
+          tempId?: string;
         }) => {
           try {
-            console.log(chatId, memberIds, 42);
-
             if (!memberIds || !message) {
               return console.error("Invalid message payload received");
             }
+
+            const memberSockets = getSockets({ users: memberIds });
+
             if (!chatId) {
               const newChat = await prisma.chat.create({
                 data: {
@@ -56,12 +59,41 @@ const setupSocket = async (io: Server) => {
               });
               chatId = newChat.id;
             }
-            console.log(memberIds, 57, message);
 
-            const memberSockets = getSockets({ users: memberIds });
+            let savedMessage;
+
+            try {
+              savedMessage = await Message.create({
+                chatId,
+                message,
+                senderId: user.userId,
+              });
+
+              await prisma.chat.update({
+                data: {
+                  last_message: message,
+                },
+                where: {
+                  id: chatId,
+                },
+              });
+
+              socket.emit(socketEvents.MAP_MESSAGE, {
+                chatId,
+                message: savedMessage,
+                tempId,
+              });
+            } catch (error) {
+              socket.emit(socketEvents.FAIL_MESSAGE, {
+                chatId,
+                tempId,
+              });
+
+              return;
+            }
 
             const filteredMemberSockets = memberSockets.filter(
-              (sockets) => sockets !== socket.id
+              (socketId) => socketId !== socket.id
             );
 
             filteredMemberSockets.forEach((memberSocket) => {
@@ -70,27 +102,8 @@ const setupSocket = async (io: Server) => {
                 message,
               });
             });
-            const status = filteredMemberSockets.map((i) => ({
-              userId: user.id,
-              delivered_at: null,
-              seen_at: null,
-            }));
 
-            const savedMessage = await Message.create({
-              chatId,
-              message,
-              senderId: user.userId,
-              status: status,
-            });
-            await prisma.chat.update({
-              data: {
-                last_message: message,
-              },
-              where: {
-                id: chatId,
-              },
-            });
-            memberSockets.forEach((memberSocket) => {
+            filteredMemberSockets.forEach((memberSocket) => {
               io.to(memberSocket).emit(socketEvents.NEW_MESSAGE, {
                 chatId,
                 messageForRealTime: savedMessage,
@@ -111,8 +124,6 @@ const setupSocket = async (io: Server) => {
           chatId: number;
           memberIds: number[];
         }) => {
-          console.log(memberIds, 108);
-
           const memberSockets = getSockets({ users: memberIds });
           const filteredMemberSockets = memberSockets.filter(
             (sockets) => sockets !== socket.id
@@ -155,29 +166,28 @@ const setupSocket = async (io: Server) => {
         }) => {
           try {
             if (messageIds.length === 0) return;
-            console.log("Worked!", 158);
-            console.log(messageIds, 159);
 
             try {
-              const result = await Message.updateMany(
+              await Message.updateMany(
                 { _id: { $in: messageIds } },
                 { $set: { seen_at: new Date() } }
               );
-              console.log(result, 165);
             } catch (error) {
               console.log(error, 167);
             }
 
             const memberSockets = getSockets({ users: [memberId] });
-            const filteredMemberSockets = memberSockets.filter(
-              (sockets) => sockets !== socket.id
-            );
+            console.log({ memberSockets });
 
-            filteredMemberSockets.forEach((memberSocket) => {
+            memberSockets.forEach((memberSocket) => {
+              console.log(
+                `Emitting MESSAGE_SEEN to ${memberSocket} for chatId ${chatId} and messageIds ${messageIds}`
+              );
+
               io.to(memberSocket).emit(socketEvents.MESSAGE_SEEN, {
                 chatId,
                 messageIds,
-                seenBy: memberId,
+                seen_at: new Date(),
               });
             });
           } catch (error) {
@@ -185,95 +195,40 @@ const setupSocket = async (io: Server) => {
           }
         }
       );
-    socket.on(socketEvents.CALL_USER, async ({ recipientId, offer }) => {
-      try {
-        const recipientSocket = userSocketIDs.get(recipientId);
-        if (!recipientSocket) {
-          console.warn(
-            `⚠️ Recipient ${recipientId} not found in active sockets.`
+      socket.on(socketEvents.CALL_USER, async ({ recipientId, offer }) => {
+        try {
+          const recipientSocket = userSocketIDs.get(recipientId);
+          if (!recipientSocket) {
+            console.warn(
+              `⚠️ Recipient ${recipientId} not found in active sockets.`
+            );
+            return;
+          }
+
+          const caller = await prisma.user.findFirst({
+            where: { id: user.userId },
+            select: { avatarUrl: true, username: true, id: true },
+          });
+
+          if (!caller) {
+            console.error("❌ Caller user data not found in database.");
+            return;
+          }
+
+          io.to(recipientSocket).emit(socketEvents.INCOMING_CALL, {
+            from: caller,
+            offer,
+          });
+
+          console.log(
+            `📞 Call request sent to user ${recipientId} from user ${caller.id}`
           );
-          return;
+        } catch (error) {
+          console.error("❌ Error handling CALL_USER event:", error);
         }
+      });
 
-        const caller = await prisma.user.findFirst({
-          where: { id: user.userId },
-          select: { avatarUrl: true, username: true, id: true },
-        });
-
-        if (!caller) {
-          console.error("❌ Caller user data not found in database.");
-          return;
-        }
-
-        io.to(recipientSocket).emit(socketEvents.INCOMING_CALL, {
-          from: caller,
-          offer,
-        });
-
-        console.log(
-          `📞 Call request sent to user ${recipientId} from user ${caller.id}`
-        );
-      } catch (error) {
-        console.error("❌ Error handling CALL_USER event:", error);
-      }
-    });
-
-    socket.on(socketEvents.ANSWER_CALL, ({ recipientId, answer }) => {
-      try {
-        const recipientSocket = userSocketIDs.get(recipientId);
-
-        if (!recipientSocket) {
-          console.warn(
-            `⚠️ Recipient ${recipientId} not found in active sockets.`
-          );
-          return;
-        }
-
-        io.to(recipientSocket).emit(socketEvents.CALL_ACCEPTED, {
-          answer,
-          from: user.userId,
-        });
-
-        console.log(
-          `✅ Call accepted by user ${user.userId}, notifying recipient ${recipientId}`
-        );
-      } catch (error) {
-        console.error("❌ Error handling ANSWER_CALL event:", error);
-      }
-    });
-
-    socket.on(socketEvents.ICE_CANDIDATE, ({ recipientId, candidate }) => {
-      try {
-        const recipientSocket = userSocketIDs.get(recipientId);
-
-        if (!recipientSocket) {
-          console.warn(
-            `⚠️ Recipient ${recipientId} not found in active sockets.`
-          );
-          return;
-        }
-
-        if (!candidate) {
-          console.warn(`⚠️ No ICE candidate provided by user ${user.userId}`);
-          return;
-        }
-
-        io.to(recipientSocket).emit(socketEvents.ICE_CANDIDATE, {
-          candidate,
-          from: user.userId,
-        });
-
-        console.log(
-          `✅ ICE candidate sent from user ${user.userId} to user ${recipientId}`
-        );
-      } catch (error) {
-        console.error("❌ Error handling ICE_CANDIDATE event:", error);
-      }
-    });
-
-    socket.on(
-      socketEvents.END_CALL,
-      ({ recipientId }: { recipientId: number }) => {
+      socket.on(socketEvents.ANSWER_CALL, ({ recipientId, answer }) => {
         try {
           const recipientSocket = userSocketIDs.get(recipientId);
 
@@ -284,18 +239,73 @@ const setupSocket = async (io: Server) => {
             return;
           }
 
-          io.to(recipientSocket).emit(socketEvents.CALL_ENDED, {
+          io.to(recipientSocket).emit(socketEvents.CALL_ACCEPTED, {
+            answer,
             from: user.userId,
           });
 
           console.log(
-            `✅ Call ended by user ${user.userId}, notifying recipient ${recipientId}`
+            `✅ Call accepted by user ${user.userId}, notifying recipient ${recipientId}`
           );
         } catch (error) {
-          console.error("❌ Error handling END_CALL event:", error);
+          console.error("❌ Error handling ANSWER_CALL event:", error);
         }
-      }
-    );
+      });
+
+      socket.on(socketEvents.ICE_CANDIDATE, ({ recipientId, candidate }) => {
+        try {
+          const recipientSocket = userSocketIDs.get(recipientId);
+
+          if (!recipientSocket) {
+            console.warn(
+              `⚠️ Recipient ${recipientId} not found in active sockets.`
+            );
+            return;
+          }
+
+          if (!candidate) {
+            console.warn(`⚠️ No ICE candidate provided by user ${user.userId}`);
+            return;
+          }
+
+          io.to(recipientSocket).emit(socketEvents.ICE_CANDIDATE, {
+            candidate,
+            from: user.userId,
+          });
+
+          console.log(
+            `✅ ICE candidate sent from user ${user.userId} to user ${recipientId}`
+          );
+        } catch (error) {
+          console.error("❌ Error handling ICE_CANDIDATE event:", error);
+        }
+      });
+
+      socket.on(
+        socketEvents.END_CALL,
+        ({ recipientId }: { recipientId: number }) => {
+          try {
+            const recipientSocket = userSocketIDs.get(recipientId);
+
+            if (!recipientSocket) {
+              console.warn(
+                `⚠️ Recipient ${recipientId} not found in active sockets.`
+              );
+              return;
+            }
+
+            io.to(recipientSocket).emit(socketEvents.CALL_ENDED, {
+              from: user.userId,
+            });
+
+            console.log(
+              `✅ Call ended by user ${user.userId}, notifying recipient ${recipientId}`
+            );
+          } catch (error) {
+            console.error("❌ Error handling END_CALL event:", error);
+          }
+        }
+      );
 
       socket.on("disconnect", () => {
         if (user) {
