@@ -17,6 +17,7 @@ import postRoutes from "./routes/post-routes.js";
 import authRoutes from "./routes/user-routes.js";
 import storyRoutes from "./routes/story-routes.js";
 import { setupSocket } from "./socket.js";
+import { frontend_urls } from "./helpers/constants.js";
 
 // PORT
 const PORT = process.env.PORT || 3000;
@@ -27,7 +28,7 @@ const server: httpServer = createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://72.61.171.104:3000"],
+    origin: [frontend_urls.development!, frontend_urls.production!],
     credentials: true,
   },
 });
@@ -39,7 +40,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://72.61.171.104:3000"],
+    origin: [frontend_urls.development!, frontend_urls.production!],
     credentials: true,
   })
 );
@@ -52,7 +53,8 @@ app.use(
       connectSrc: [
         "'self'",
         "http://localhost:8080",
-        "http://72.61.171.104:3000",
+        frontend_urls.development!,
+        frontend_urls.production!,
       ],
     },
   })

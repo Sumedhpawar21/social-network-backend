@@ -20,6 +20,11 @@ export const socketEvents = {
   CALL_ENDED: "CALL_ENDED",
 };
 
+export const frontend_urls = {
+  development: process.env.DEV_FRONTEND_URL,
+  production: process.env.PROD_FRONTEND_URL,
+};
+
 export class CookieOptions {
   maxAge: number;
   sameSite: "none" | "lax" | "strict";
