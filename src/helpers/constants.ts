@@ -50,7 +50,7 @@ export class CookieOptions {
     this.secure = process.env.NODE_ENV === "production";
    this.domain =
      process.env.NODE_ENV === "production"
-       ? "." + process.env.COOKIE_DOMAIN!.trim().replace(/^\.*/, "")
+       ? process.env.COOKIE_DOMAIN
        : undefined;
   }
 }
