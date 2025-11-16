@@ -30,7 +30,7 @@ export class CookieOptions {
   sameSite: "none" | "lax" | "strict";
   httpOnly: boolean;
   secure: boolean;
-
+  domain?: string;
   constructor({
     is_refresh,
     logout = false,
@@ -48,6 +48,10 @@ export class CookieOptions {
     this.httpOnly = true;
 
     this.secure = process.env.NODE_ENV === "production";
+    this.domain =
+      process.env.NODE_ENV === "production"
+        ? process.env.COOKIE_DOMAIN!
+        : undefined;
   }
 }
 
