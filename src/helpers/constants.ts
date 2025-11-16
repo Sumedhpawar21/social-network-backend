@@ -1,3 +1,4 @@
+import { CookieOptions as ExpressCookieOptions } from "express";
 export const refresh_token = "social_refresh_token";
 export const access_token = "social_access_token";
 
@@ -25,19 +26,21 @@ export const frontend_urls = {
   production: process.env.PROD_FRONTEND_URL,
 };
 
-export class CookieOptions {
-  maxAge: number;
-  sameSite: "none" | "lax" | "strict";
-  httpOnly: boolean;
-  secure: boolean;
+export class CookieOptions implements ExpressCookieOptions {
+  maxAge!: number;
+  sameSite!: "none" | "lax" | "strict";
+  httpOnly!: boolean;
+  secure!: boolean;
   domain?: string;
+  partitioned?: boolean;
+
   constructor({
     is_refresh,
     logout = false,
   }: {
     is_refresh?: boolean;
     logout?: boolean;
-  }) {
+  } = {}) {
     this.maxAge = logout
       ? 0
       : is_refresh
@@ -46,12 +49,12 @@ export class CookieOptions {
 
     this.sameSite = process.env.NODE_ENV === "production" ? "none" : "lax";
     this.httpOnly = true;
-
     this.secure = process.env.NODE_ENV === "production";
-   this.domain =
-     process.env.NODE_ENV === "production"
-       ? process.env.COOKIE_DOMAIN
-       : undefined;
+    this.domain =
+      process.env.NODE_ENV === "production"
+        ? process.env.COOKIE_DOMAIN
+        : undefined;
+
+    this.partitioned = true;
   }
 }
-
