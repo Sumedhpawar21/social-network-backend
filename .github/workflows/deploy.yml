@@ -1,0 +1,52 @@
+name: social backend deployment
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          port: ${{ secrets.SERVER_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /var/www/social-network-backend
+
+            echo "🔄 Pulling latest changes"
+            git fetch origin
+            git reset --hard origin/main
+
+            echo "📦 Installing dependencies"
+            npm i
+
+            echo "⚙️ Generating Prisma client"
+            npx prisma generate
+
+            echo "📦 Building the project"
+            npm run build
+
+            # 🔁 Zero‑downtime reload
+            echo "🚀 Reloading app with zero downtime"
+            pm2 reload social-network-backend || \
+            pm2 start npm --name "social-network-backend" -- start
+
+            echo "✅ Deployment complete"
