@@ -18,6 +18,7 @@ import authRoutes from "./routes/user-routes.js";
 import storyRoutes from "./routes/story-routes.js";
 import { setupSocket } from "./socket.js";
 import { frontend_urls } from "./helpers/constants.js";
+import { ShutDown } from "./utils/gracefullShutdown.js";
 
 // PORT
 const PORT = process.env.PORT || 3000;
@@ -79,9 +80,8 @@ app.use("/api/friends", friendRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/story", storyRoutes);
 
-
-
-
-
 app.use(errorMiddleware);
 server.listen(PORT, () => console.log(`PORT Running ON PORT ${PORT}`));
+
+process.on("SIGTERM", () => ShutDown(server, io));
+process.on("SIGINT", () => ShutDown(server, io));
