@@ -46,76 +46,61 @@ const getStoriesController = async (
     const userId = Number(req.user?.userId);
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const usersWithStories = await prisma.user.findMany({
-      where: {
-        OR: [
-          { id: userId },
-          {
-            friendOf: {
-              some: {
-                userId,
-                status: "accepted",
-              },
-            },
-          },
-          {
-            friendships: {
-              some: {
-                friendId: userId,
-                status: "accepted",
-              },
-            },
-          },
-        ],
-        Story: {
-          some: {
-            createdAt: {
-              gte: twentyFourHoursAgo,
-            },
-          },
-        },
-      },
-      select: {
-        id: true,
-        username: true,
-        avatarUrl: true,
-        Story: {
-          where: {
-            createdAt: {
-              gte: twentyFourHoursAgo,
-            },
-          },
-          orderBy: {
-            createdAt: "asc",
-          },
-          select: {
-            id: true,
-            content: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
+     const users = await prisma.user.findMany({
+       where: {
+         OR: [
+           { id: userId },
+           {
+             friendOf: {
+               some: { userId, status: "accepted" },
+             },
+           },
+           {
+             friendships: {
+               some: { friendId: userId, status: "accepted" },
+             },
+           },
+         ],
+       },
+       select: {
+         id: true,
+         username: true,
+         avatarUrl: true,
+         Story: {
+           where: {
+             createdAt: { gte: twentyFourHoursAgo },
+           },
+           orderBy: {
+             createdAt: "asc",
+           },
+           select: {
+             id: true,
+             content: true,
+             createdAt: true,
+           },
+         },
+       },
+     });
 
-    const sortedStories = [
-      ...usersWithStories.filter((user) => user.id === userId),
-      ...usersWithStories.filter((user) => user.id !== userId),
-    ];
+     const orderedUsers = [
+       ...users.filter((u) => u.id === userId),
+       ...users.filter((u) => u.id !== userId && u.Story.length > 0),
+     ];
 
-    const response = sortedStories.map((user) => ({
-      user: {
-        id: user.id,
-        username: user.username,
-        avatarUrl: user.avatarUrl,
-      },
-      stories: user.Story,
-    }));
+     const data = orderedUsers.map((u) => ({
+       user: {
+         id: u.id,
+         username: u.username,
+         avatarUrl: u.avatarUrl,
+       },
+       stories: u.Story,
+     }));
 
-    return res.status(200).json({
-      success: true,
-      message: "Stories fetched successfully",
-      data: response,
-    });
+     return res.status(200).json({
+       success: true,
+       message: "Stories fetched successfully",
+       data,
+     });
   } catch (error) {
     console.error(error);
     return next(new ErrorHandler("Internal Server Error", 500));
